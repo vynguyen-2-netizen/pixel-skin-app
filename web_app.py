@@ -38,5 +38,8 @@ webrtc_streamer(
     key="pixel-skin",
     video_processor_factory=VideoProcessor,
     media_stream_constraints={"video": True, "audio": False},
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    },
     async_processing=True,
 )
