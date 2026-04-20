@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Environmental Pixel Skin + Surveillance Simulation</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: #e5e7eb;
+      padding: 20px;
+      border-right: 1px solid #d1d5db;
+      overflow-y: auto;
+    }
+    .main {
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 2.2rem;
+      font-weight: 700;
+    }
+    .subtitle {
+      margin: 0 0 28px;
+      color: #374151;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin: 0 0 14px;
+    }
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+      align-items: start;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .canvas-wrap {
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 16 / 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    label {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 18px 0 8px;
+    }
+    select, input[type="range"], button {
+      width: 100%;
+    }
+    select, button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      font-size: 0.95rem;
+    }
+    input[type="range"] {
+      accent-color: #ef4444;
+    }
+    .meta {
+      margin-top: 18px;
+      padding: 14px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .small {
+      color: #4b5563;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .stat {
+      margin: 12px 0;
+      line-height: 1.55;
+    }
+    .top-note {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #eaf2ff;
+      color: #1f4e8c;
+    }
+    .controls-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .panel-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h2>Observer Type</h2>
+
+      <label for="observerSelect">Select Observer Type</label>
+      <select id="observerSelect"></select>
+
+      <div class="stat" id="presetInfo"></div>
+      <div class="stat" id="observerInfo"></div>
+
+      <label for="pixelSize">Pixel Size</label>
+      <input id="pixelSize" type="range" min="2" max="40" value="18" />
+
+      <label for="colorLevels">Color Levels</label>
+      <input id="colorLevels" type="range" min="2" max="12" value="6" />
+
+      <label for="blurAmount">Blur</label>
+      <input id="blurAmount" type="range" min="0" max="10" value="3" />
+
+      <label for="cameraMode">Camera Mode</label>
+      <select id="cameraMode">
+        <option value="environment">Rear Camera</option>
+        <option value="user">Front Camera</option>
+      </select>
+
+      <label for="deviceSelect">Camera Device</label>
+      <select id="deviceSelect">
+        <option value="">Auto-select after permission</option>
+      </select>
+
+      <div class="controls-row" style="margin-top:14px;">
+        <button id="startBtn">Start Camera</button>
+        <button id="stopBtn">Stop Camera</button>
+      </div>
+
+      <div class="meta" id="designResponse"></div>
+    </aside>
+
+    <main class="main">
+      <h1>Environmental Pixel Skin + Surveillance Simulation</h1>
+      <p class="subtitle">Live camera feed translated into a simplified pixel surface and projected onto the demo truck.</p>
+
+      <div class="panel-grid">
+        <div>
+          <h2>1. Surveillance View (Processed Camera Feed)</h2>
+          <div class="card">
+            <div class="canvas-wrap">
+              <canvas id="processedCanvas" width="640" height="400"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h2>2. Top View Truck Projection</h2>
+          <div class="card">
+            <div class="canvas-wrap" style="background:#f8fafc;">
+              <canvas id="truckCanvas" width="900" height="540"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-note">
+        Change the observer type or settings to test how the pixel skin adapts under different surveillance conditions.
+      </div>
+    </main>
+  </div>
+
+  <video id="video" autoplay playsinline muted style="display:none;"></video>
+
+  <script>
+    const PRESETS = {
+      "Satellite High": {
+        pixel: 28, colors: 4, blur: 5,
+        resolution: "Very Low (10–30m per pixel)",
+        visible: "Large color zones, terrain patterns, roads, urban blocks",
+        disappear: "Individual vehicles, small buildings, texture",
+        focus: "Color contrast, large-scale pattern, anomalies",
+        response: "Match large-scale color fields and reduce contrast with landscape."
+      },
+      "Satellite Low": {
+        pixel: 18, colors: 6, blur: 3,
+        resolution: "Medium (0.3–1m per pixel)",
+        visible: "Building footprints, large vehicles, infrastructure layout",
+        disappear: "Fine textures, small objects, subtle material differences",
+        focus: "Shape, geometry, contrast, shadow",
+        response: "Reduce obvious outline and avoid strong contrast."
+      },
+      "Drone High": {
+        pixel: 12, colors: 8, blur: 2,
+        resolution: "Medium",
+        visible: "Building forms, roads, vehicles, movement",
+        disappear: "Surface texture, fine material detail",
+        focus: "Movement, spatial exposure, object contrast",
+        response: "Break object shape and avoid isolated exposure."
+      },
+      "Drone Low": {
+        pixel: 7, colors: 10, blur: 1,
+        resolution: "High",
+        visible: "Material, surface color, openings, equipment",
+        disappear: "Micro texture depends on speed and motion",
+        focus: "Shape, activity, behavior, thermal if equipped",
+        response: "Disturb edges while keeping the surface believable up close."
+      },
+      "Human Far": {
+        pixel: 10, colors: 8, blur: 1,
+        resolution: "Low",
+        visible: "Silhouette, contrast, movement",
+        disappear: "Texture, material detail, color nuance",
+        focus: "Outline, motion, contrast against background",
+        response: "Reduce silhouette clarity."
+      },
+      "Human Close": {
+        pixel: 4, colors: 12, blur: 0,
+        resolution: "Very High",
+        visible: "Full material detail, texture, joints, wear",
+        disappear: "Nothing",
+        focus: "Material, construction detail, tactile reading",
+        response: "Surface must read as normal and non-suspicious."
+      }
+    };
+
+    const observerSelect = document.getElementById("observerSelect");
+    const pixelSizeInput = document.getElementById("pixelSize");
+    const colorLevelsInput = document.getElementById("colorLevels");
+    const blurAmountInput = document.getElementById("blurAmount");
+    const cameraModeSelect = document.getElementById("cameraMode");
+    const deviceSelect = document.getElementById("deviceSelect");
+    const presetInfo = document.getElementById("presetInfo");
+    const observerInfo = document.getElementById("observerInfo");
+    const designResponse = document.getElementById("designResponse");
+
+    const processedCanvas = document.getElementById("processedCanvas");
+    const processedCtx = processedCanvas.getContext("2d");
+
+    const truckCanvas = document.getElementById("truckCanvas");
+    const truckCtx = truckCanvas.getContext("2d");
+
+    const video = document.getElementById("video");
+
+    const sourceCanvas = document.createElement("canvas");
+    const sourceCtx = sourceCanvas.getContext("2d");
+
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+
+    let stream = null;
+    let animationId = null;
+
+    const truckImg = new Image();
+    const maskImg = new Image();
+
+    let truckImageData = null;
+    let maskAlpha = null;
+
+    function initObserverOptions() {
+      Object.keys(PRESETS).forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        observerSelect.appendChild(option);
+      });
+      observerSelect.value = "Satellite Low";
+      applyPreset();
+    }
+
+    function applyPreset() {
+      const preset = PRESETS[observerSelect.value];
+      pixelSizeInput.value = preset.pixel;
+      colorLevelsInput.value = preset.colors;
+      blurAmountInput.value = preset.blur;
+
+      presetInfo.innerHTML = `
+        <strong>Current Preset (${observerSelect.value})</strong><br><br>
+        • Pixel Size: ${preset.pixel}<br><br>
+        • Color Levels: ${preset.colors}<br><br>
+        • Blur: ${preset.blur}
+      `;
+
+      observerInfo.innerHTML = `
+        <strong>Observer Reading</strong><br><br>
+        <strong>Resolution:</strong> ${preset.resolution}<br><br>
+        <strong>Clearly visible:</strong> ${preset.visible}<br><br>
+        <strong>Starts to disappear:</strong> ${preset.disappear}<br><br>
+        <strong>Key detection focus:</strong> ${preset.focus}
+      `;
+
+      designResponse.innerHTML = `<strong>Design Response</strong><br><br>${preset.response}`;
+    }
+
+    observerSelect.addEventListener("change", applyPreset);
+
+    async function startCamera() {
+      stopCamera();
+
+      const deviceId = deviceSelect.value;
+      const facingMode = cameraModeSelect.value;
+
+      const constraints = {
+        video: deviceId
+          ? { deviceId: { exact: deviceId } }
+          : { facingMode: { ideal: facingMode } },
+        audio: false
+      };
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+        await populateDevices();
+        renderLoop();
+      } catch (err) {
+        alert("Could not start camera. Try another device or allow camera permission.");
+        console.error(err);
+      }
+    }
+
+    function stopCamera() {
+      if (animationId) cancelAnimationFrame(animationId);
+      animationId = null;
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+
+      processedCtx.fillStyle = "#000";
+      processedCtx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
+
+      if (truckImageData) {
+        truckCtx.putImageData(truckImageData, 0, 0);
+      }
+    }
+
+    async function populateDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+        deviceSelect.innerHTML = `<option value="">Auto-select</option>`;
+        videoDevices.forEach((device, i) => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.textContent = device.label || `Camera ${i + 1}`;
+          deviceSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function pixelateFrame(img, pixelSize, colorLevels, blurAmount) {
+      const w = processedCanvas.width;
+      const h = processedCanvas.height;
+
+      sourceCanvas.width = w;
+      sourceCanvas.height = h;
+      sourceCtx.drawImage(img, 0, 0, w, h);
+
+      const smallW = Math.max(1, Math.floor(w / pixelSize));
+      const smallH = Math.max(1, Math.floor(h / pixelSize));
+
+      tempCanvas.width = smallW;
+      tempCanvas.height = smallH;
+
+      tempCtx.clearRect(0, 0, smallW, smallH);
+      tempCtx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
+      tempCtx.drawImage(sourceCanvas, 0, 0, smallW, smallH);
+
+      processedCtx.clearRect(0, 0, w, h);
+      processedCtx.imageSmoothingEnabled = false;
+      processedCtx.drawImage(tempCanvas, 0, 0, smallW, smallH, 0, 0, w, h);
+
+      let imageData = processedCtx.getImageData(0, 0, w, h);
+      let data = imageData.data;
+
+      const step = Math.max(1, Math.floor(256 / colorLevels));
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.floor(data[i] / step) * step;
+        data[i + 1] = Math.floor(data[i + 1] / step) * step;
+        data[i + 2] = Math.floor(data[i + 2] / step) * step;
+      }
+
+      processedCtx.putImageData(imageData, 0, 0);
+      return imageData;
+    }
+
+    function applyToTruck(processedImageData) {
+      if (!truckImageData || !maskAlpha) return;
+
+      const output = new ImageData(
+        new Uint8ClampedArray(truckImageData.data),
+        truckImageData.width,
+        truckImageData.height
+      );
+
+      const resizedCanvas = document.createElement("canvas");
+      const resizedCtx = resizedCanvas.getContext("2d");
+      resizedCanvas.width = truckCanvas.width;
+      resizedCanvas.height = truckCanvas.height;
+
+      const procCanvas = document.createElement("canvas");
+      const procCtx = procCanvas.getContext("2d");
+      procCanvas.width = processedCanvas.width;
+      procCanvas.height = processedCanvas.height;
+      procCtx.putImageData(processedImageData, 0, 0);
+
+      resizedCtx.imageSmoothingEnabled = false;
+      resizedCtx.drawImage(procCanvas, 0, 0, truckCanvas.width, truckCanvas.height);
+
+      const resizedData = resizedCtx.getImageData(0, 0, truckCanvas.width, truckCanvas.height).data;
+
+      for (let i = 0; i < output.data.length; i += 4) {
+        if (maskAlpha[i / 4] > 0) {
+          output.data[i] = resizedData[i];
+          output.data[i + 1] = resizedData[i + 1];
+          output.data[i + 2] = resizedData[i + 2];
+        }
+      }
+
+      truckCtx.putImageData(output, 0, 0);
+    }
+
+    function renderLoop() {
+      if (!video.videoWidth || !video.videoHeight) {
+        animationId = requestAnimationFrame(renderLoop);
+        return;
+      }
+
+      const processed = pixelateFrame(
+        video,
+        Number(pixelSizeInput.value),
+        Number(colorLevelsInput.value),
+        Number(blurAmountInput.value)
+      );
+
+      applyToTruck(processed);
+      animationId = requestAnimationFrame(renderLoop);
+    }
+
+    function loadImages() {
+      return new Promise((resolve, reject) => {
+        let loaded = 0;
+        function done() {
+          loaded++;
+          if (loaded === 2) resolve();
+        }
+
+        truckImg.onload = done;
+        maskImg.onload = done;
+        truckImg.onerror = reject;
+        maskImg.onerror = reject;
+
+        truckImg.src = "truck_top.jpeg";
+        maskImg.src = "truck_mask.png";
+      });
+    }
+
+    function buildTruckMask() {
+      truckCanvas.width = truckImg.width;
+      truckCanvas.height = truckImg.height;
+      truckCtx.drawImage(truckImg, 0, 0);
+      truckImageData = truckCtx.getImageData(0, 0, truckCanvas.width, truckCanvas.height);
+
+      const maskCanvas = document.createElement("canvas");
+      const maskCtx = maskCanvas.getContext("2d");
+      maskCanvas.width = maskImg.width;
+      maskCanvas.height = maskImg.height;
+      maskCtx.drawImage(maskImg, 0, 0);
+
+      const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
+      maskAlpha = new Uint8Array(maskCanvas.width * maskCanvas.height);
+
+      for (let i = 0, p = 0; i < maskData.length; i += 4, p++) {
+        const r = maskData[i];
+        const g = maskData[i + 1];
+        const b = maskData[i + 2];
+
+        const isGreen = g > 180 && r < 120 && b < 120;
+        maskAlpha[p] = isGreen ? 255 : 0;
+      }
+
+      truckCtx.putImageData(truckImageData, 0, 0);
+    }
+
+    document.getElementById("startBtn").addEventListener("click", startCamera);
+    document.getElementById("stopBtn").addEventListener("click", stopCamera);
+    cameraModeSelect.addEventListener("change", () => {
+      if (stream) startCamera();
+    });
+
+    window.addEventListener("load", async () => {
+      initObserverOptions();
+      try {
+        await loadImages();
+        buildTruckMask();
+      } catch (err) {
+        alert("Could not load truck_top.jpeg or truck_mask.png");
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
