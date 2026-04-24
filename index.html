@@ -3,524 +3,1720 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Environmental Pixel Skin + Surveillance Simulation</title>
+  <title>Environmental Pixel Skin</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f3f4f6;
-      color: #1f2937;
+    :root{
+      --bg:#f5f6f8;
+      --card:#ffffff;
+      --line:#d9dee7;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --accent-soft:#eaf2ff;
+      --shadow:0 10px 26px rgba(0,0,0,.06);
+      --radius:18px;
     }
-    .app {
-      display: grid;
-      grid-template-columns: 290px 1fr;
-      min-height: 100vh;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:var(--bg);
+      color:var(--text);
     }
-    .sidebar {
-      background: #e5e7eb;
-      padding: 20px;
-      border-right: 1px solid #d1d5db;
-      overflow-y: auto;
+    .app{
+      display:grid;
+      grid-template-columns:330px minmax(0,1fr);
+      gap:18px;
+      padding:18px;
+      min-height:100vh;
     }
-    .main {
-      padding: 28px;
+    .sidebar,.card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
     }
-    h1 {
-      margin: 0 0 10px;
-      font-size: 2.2rem;
-      font-weight: 700;
+    .sidebar{
+      padding:18px;
+      max-height:calc(100vh - 36px);
+      overflow:auto;
     }
-    .subtitle {
-      margin: 0 0 28px;
-      color: #374151;
+    .main{
+      display:grid;
+      gap:18px;
+      min-width:0;
     }
-    h2 {
-      font-size: 1.2rem;
-      margin: 0 0 14px;
+    .hero{
+      padding:22px;
     }
-    .panel-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 26px;
-      align-items: start;
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(2rem,2.8vw,3rem);
+      line-height:1.05;
+      letter-spacing:-.03em;
     }
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    h2{
+      margin:0;
+      font-size:1.05rem;
+      letter-spacing:-.02em;
     }
-    .canvas-wrap {
-      background: #000;
-      border-radius: 10px;
-      overflow: hidden;
-      aspect-ratio: 16 / 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    p{margin:0}
+    .muted{
+      color:var(--muted);
+      line-height:1.55;
     }
-    canvas {
-      width: 100%;
-      height: auto;
-      display: block;
+    .section-label{
+      margin:18px 0 8px;
+      font-size:.78rem;
+      font-weight:700;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:var(--muted);
     }
-    label {
-      display: block;
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin: 18px 0 8px;
+    label{
+      display:block;
+      margin-bottom:8px;
+      font-size:.92rem;
+      font-weight:600;
+      color:var(--text);
     }
-    select, input[type="range"], button {
-      width: 100%;
+    select,button,input[type="file"]{
+      width:100%;
+      font:inherit;
     }
-    select, button {
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #d1d5db;
-      background: #fff;
-      font-size: 0.95rem;
+    select,button{
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
     }
-    input[type="range"] {
-      accent-color: #ef4444;
+    button{cursor:pointer}
+    button.primary{
+      background:var(--accent);
+      color:#fff;
+      border-color:var(--accent);
     }
-    .meta {
-      margin-top: 18px;
-      padding: 14px;
-      background: #dbeafe;
-      color: #1e3a8a;
-      border-radius: 12px;
-      font-size: 0.95rem;
-      line-height: 1.5;
+    button.ghost{
+      background:#fff;
     }
-    .small {
-      color: #4b5563;
-      font-size: 0.92rem;
-      line-height: 1.5;
+    .grid-2,.grid-3,.map-toolbar{
+      display:grid;
+      gap:10px;
     }
-    .stat {
-      margin: 12px 0;
-      line-height: 1.55;
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .map-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}
+    input[type="range"]{
+      width:100%;
+      accent-color:#2563eb;
     }
-    .top-note {
-      margin-top: 20px;
-      padding: 14px;
-      border-radius: 12px;
-      background: #eaf2ff;
-      color: #1f4e8c;
+    .slider-meta{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:4px;
+      color:var(--muted);
+      font-size:.84rem;
     }
-    .controls-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    .metric{
+      padding:12px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:#fafbfd;
     }
-    @media (max-width: 980px) {
-      .app { grid-template-columns: 1fr; }
-      .panel-grid { grid-template-columns: 1fr; }
+    .metric .k{
+      font-size:.75rem;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      font-weight:700;
+      margin-bottom:5px;
+    }
+    .metric .v{
+      font-size:.95rem;
+      line-height:1.45;
+      font-weight:600;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+      font-size:.84rem;
+      font-weight:600;
+    }
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--accent);
+    }
+    .row-2{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:18px;
+    }
+    .card{
+      padding:16px;
+      min-width:0;
+    }
+    .title-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+    .canvas-wrap{
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+      background:#0a0a0a;
+      min-height:240px;
+      position:relative;
+    }
+    .canvas-wrap.light{
+      background:#f8fafc;
+    }
+    .placeholder{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:24px;
+      color:rgba(255,255,255,.82);
+      font-size:1rem;
+      line-height:1.6;
+      background:linear-gradient(180deg,#0f172a 0%,#111827 100%);
+    }
+    .placeholder.light{
+      color:var(--muted);
+      background:#f8fafc;
+    }
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+    }
+    .palette{
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+      margin-top:12px;
+    }
+    .swatch{
+      height:42px;
+      position:relative;
+    }
+    .swatch span{
+      position:absolute;
+      left:8px;
+      bottom:6px;
+      font-size:.72rem;
+      color:#fff;
+      text-shadow:0 1px 2px rgba(0,0,0,.45);
+      font-weight:700;
+    }
+    .analysis{
+      display:grid;
+      gap:8px;
+      margin-top:12px;
+      font-size:.94rem;
+      line-height:1.5;
+    }
+    .analysis strong{color:var(--text)}
+    .note{
+      margin-top:12px;
+      padding:14px;
+      border-radius:14px;
+      background:var(--accent-soft);
+      border:1px solid #cfe0ff;
+      color:#204b8d;
+      line-height:1.55;
+      font-size:.93rem;
+    }
+    .map-card{padding:16px}
+    #map{
+      height:460px;
+      width:100%;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid var(--line);
+    }
+    .map-stage{
+      position:relative;
+    }
+    .map-overlay{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      border-radius:16px;
+      overflow:hidden;
+    }
+    .map-overlay canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+    .compare-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
+    }
+    .compare-card{
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .compare-card .label{
+      padding:10px 12px;
+      border-bottom:1px solid var(--line);
+      font-size:.86rem;
+      font-weight:700;
+      color:var(--text);
+      background:#fafbfd;
+    }
+    .compare-card .label small{
+      display:block;
+      color:var(--muted);
+      font-weight:600;
+      margin-top:4px;
+    }
+    .compare-canvas-wrap{
+      background:#000;
+      min-height:190px;
+    }
+    .score-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      margin-top:12px;
+    }
+    .score-box{
+      padding:12px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:#fafbfd;
+    }
+    .score-box .k{
+      font-size:.74rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      font-weight:700;
+      margin-bottom:4px;
+    }
+    .score-box .v{
+      font-size:1rem;
+      font-weight:700;
+      color:var(--text);
+    }
+    .hidden{display:none!important}
+    .leaflet-popup-content-wrapper,.leaflet-popup-tip{
+      background:#fff;
+      color:#1f2937;
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+    }
+    .leaflet-control-zoom a{color:#111827!important}
+    @media (max-width:1100px){
+      .app{grid-template-columns:1fr}
+      .sidebar{max-height:none}
+    }
+    @media (max-width:800px){
+      .row-2,.grid-2,.grid-3,.map-toolbar,.compare-grid,.score-grid{
+        grid-template-columns:1fr;
+      }
+      #map{height:420px}
     }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <h2>Observer Type</h2>
-
-      <label for="observerSelect">Select Observer Type</label>
-      <select id="observerSelect"></select>
-
-      <div class="stat" id="presetInfo"></div>
-      <div class="stat" id="observerInfo"></div>
-
-      <label for="pixelSize">Pixel Size</label>
-      <input id="pixelSize" type="range" min="2" max="40" value="18" />
-
-      <label for="colorLevels">Color Levels</label>
-      <input id="colorLevels" type="range" min="2" max="12" value="6" />
-
-      <label for="blurAmount">Blur</label>
-      <input id="blurAmount" type="range" min="0" max="10" value="3" />
-
-      <label for="cameraMode">Camera Mode</label>
-      <select id="cameraMode">
-        <option value="environment">Rear Camera</option>
-        <option value="user">Front Camera</option>
-      </select>
-
-      <label for="deviceSelect">Camera Device</label>
-      <select id="deviceSelect">
-        <option value="">Auto-select after permission</option>
-      </select>
-
-      <div class="controls-row" style="margin-top:14px;">
-        <button id="startBtn">Start Camera</button>
-        <button id="stopBtn">Stop Camera</button>
+      <div class="section-label">Source Mode</div>
+      <div class="grid-3">
+        <button id="mapModeBtn" class="primary" type="button">Map Context</button>
+        <button id="uploadModeBtn" class="ghost" type="button">Upload Image</button>
+        <button id="cameraModeBtn" class="ghost" type="button">Live Camera</button>
       </div>
 
-      <div class="meta" id="designResponse"></div>
+      <div id="uploadControls" class="hidden">
+        <div class="section-label">Image Input</div>
+        <label for="imageUpload">Choose context image</label>
+        <input id="imageUpload" type="file" accept="image/*" />
+      </div>
+
+      <div id="cameraControls" class="hidden">
+        <div class="section-label">Camera Input</div>
+        <label for="cameraFacing">Camera Mode</label>
+        <select id="cameraFacing">
+          <option value="environment">Rear Camera</option>
+          <option value="user">Front Camera</option>
+        </select>
+        <div style="height:10px"></div>
+        <label for="cameraSelect">Camera Device</label>
+        <select id="cameraSelect">
+          <option value="">Auto-select after permission</option>
+        </select>
+        <div style="height:10px"></div>
+        <div class="grid-2">
+          <button id="startCameraBtn" class="primary" type="button">Start Camera</button>
+          <button id="stopCameraBtn" class="ghost" type="button">Stop Camera</button>
+        </div>
+      </div>
+
+      <div class="section-label">Surveillance Level</div>
+      <label for="observerSelect">Select observer type</label>
+      <select id="observerSelect"></select>
+
+      <div class="section-label">Node Focus</div>
+      <div class="grid-3" id="nodeButtons"></div>
+
+      <div class="section-label">Segment Views</div>
+      <div class="grid-2" id="segmentButtons"></div>
+
+      <div class="section-label">Pixel Controls</div>
+      <label for="pixelSizeRange">Pixel Size</label>
+      <input id="pixelSizeRange" type="range" min="4" max="64" step="1" />
+      <div class="slider-meta"><span>Smaller</span><strong id="pixelSizeValue"></strong><span>Larger</span></div>
+
+      <div style="height:10px"></div>
+      <label for="colorLevelsRange">Color Levels</label>
+      <input id="colorLevelsRange" type="range" min="3" max="14" step="1" />
+      <div class="slider-meta"><span>Softer</span><strong id="colorLevelsValue"></strong><span>Sharper</span></div>
+
+      <div style="height:10px"></div>
+      <label for="blurRange">Observer Blur</label>
+      <input id="blurRange" type="range" min="0" max="10" step="1" />
+      <div class="slider-meta"><span>Low</span><strong id="blurValue"></strong><span>High</span></div>
+
+      <div style="height:10px"></div>
+      <label for="noiseRange">Texture Noise</label>
+      <input id="noiseRange" type="range" min="0" max="32" step="1" />
+      <div class="slider-meta"><span>Clean</span><strong id="noiseValue"></strong><span>Noisy</span></div>
+
+      <div class="section-label">Detection Logic</div>
+      <div class="metric"><div class="k">Active Node</div><div class="v" id="activeNodeMetric">Node A — Kavumu Airport</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Zone Type</div><div class="v" id="zoneTypeMetric">Institutional</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Resolution</div><div class="v" id="resolutionMetric">Very Low (10–30m per pixel)</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Clearly Visible</div><div class="v" id="visibleMetric">Large color zones, terrain patterns, roads, urban blocks</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">What Fades</div><div class="v" id="fadeMetric">Individual vehicles, small buildings, texture</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Detection Focus</div><div class="v" id="focusMetric">Color contrast, large-scale pattern, anomalies</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Design Translation</div><div class="v" id="logicMetric">Match large-scale color fields and reduce contrast with landscape</div></div>
+      <div style="height:10px"></div>
+      <div class="metric"><div class="k">Pixel Strategy</div><div class="v" id="pixelStrategyMetric">Use big blended pixels</div></div>
     </aside>
 
     <main class="main">
-      <h1>Environmental Pixel Skin + Surveillance Simulation</h1>
-      <p class="subtitle">Live camera feed translated into a simplified pixel surface and projected onto the demo truck.</p>
+      <section class="hero card">
+        <h1>Environmental Pixel Skin</h1>
+        <p class="muted">Read context directly from the selected route node, generate a pixel field from that environment, project it onto the vehicle, and test how it behaves at different surveillance scales.</p>
+      </section>
 
-      <div class="panel-grid">
-        <div>
-          <h2>1. Surveillance View (Processed Camera Feed)</h2>
-          <div class="card">
-            <div class="canvas-wrap">
-              <canvas id="processedCanvas" width="640" height="400"></canvas>
-            </div>
+      <section class="row-2">
+        <div class="card">
+          <div class="title-row">
+            <h2>1. Context Input + Analysis</h2>
+            <span class="pill"><span class="dot"></span><span id="modeTag">Map context</span></span>
+          </div>
+          <div class="canvas-wrap" id="contextWrap">
+            <canvas id="contextCanvas" width="720" height="420"></canvas>
+            <div id="contextPlaceholder" class="placeholder hidden">Select a node to sample the current map context, upload an image, or start the camera.</div>
+          </div>
+          <div class="palette" id="paletteStrip"></div>
+          <div class="analysis" id="analysisList"></div>
+        </div>
+
+        <div class="card">
+          <div class="title-row">
+            <h2>2. Generated Pixel Field</h2>
+            <span class="pill"><span class="dot"></span><span id="observerTag">Satellite High Orbit</span></span>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="patternCanvas" width="720" height="420"></canvas>
+          </div>
+          <div class="note" id="patternNote">Generated from existing context. Clean square sampling is used to keep the field legible as a camouflage proposal rather than a graphic effect.</div>
+        </div>
+      </section>
+
+      <section class="row-2">
+        <div class="card">
+          <div class="title-row">
+            <h2>3. Truck Projection</h2>
+            <span class="pill"><span class="dot"></span>Mask-based</span>
+          </div>
+          <div class="canvas-wrap light">
+            <canvas id="truckCanvas" width="1024" height="640"></canvas>
           </div>
         </div>
 
-        <div>
-          <h2>2. Top View Truck Projection</h2>
-          <div class="card">
-            <div class="canvas-wrap" style="background:#f8fafc;">
-              <canvas id="truckCanvas" width="900" height="540"></canvas>
+        <div class="card">
+          <div class="title-row">
+            <h2>4. Observer Test</h2>
+            <span class="pill"><span class="dot"></span><span id="observerReadTag">Large colour zones dominate</span></span>
+          </div>
+
+          <div class="compare-grid">
+            <div class="compare-card">
+              <div class="label">Background Only<small>Control image</small></div>
+              <div class="compare-canvas-wrap">
+                <canvas id="compareBgCanvas" width="360" height="220"></canvas>
+              </div>
+            </div>
+
+            <div class="compare-card">
+              <div class="label">Plain Truck<small>Untreated roof</small></div>
+              <div class="compare-canvas-wrap">
+                <canvas id="comparePlainCanvas" width="360" height="220"></canvas>
+              </div>
+            </div>
+
+            <div class="compare-card">
+              <div class="label">Pixel Skin Truck<small>Roof adapted to context</small></div>
+              <div class="compare-canvas-wrap">
+                <canvas id="comparePixelCanvas" width="360" height="220"></canvas>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="top-note">
-        Change the observer type or settings to test how the pixel skin adapts under different surveillance conditions.
-      </div>
+          <div class="score-grid">
+            <div class="score-box">
+              <div class="k">Plain Truck Legibility</div>
+              <div class="v" id="plainScore">High</div>
+            </div>
+            <div class="score-box">
+              <div class="k">Pixel Skin Legibility</div>
+              <div class="v" id="pixelScore">Reduced</div>
+            </div>
+          </div>
+
+          <div class="note" id="observerNote">This panel compares the untreated truck against the pixel-adapted truck inside the same sampled background so the difference can be read directly under the selected observer mode.</div>
+        </div>
+      </section>
+
+      <section class="card map-card">
+        <div class="title-row">
+          <h2>5. Route Map + Node Navigation</h2>
+          <div class="grid-2" style="width:320px;max-width:100%;">
+            <button id="overallBtn" class="ghost" type="button">Overall Map</button>
+            <button id="downloadObserverBtn" class="ghost" type="button">Save Observer PNG</button>
+          </div>
+        </div>
+
+        <div class="map-toolbar">
+          <button id="mapRouteViewBtn" class="primary" type="button">Route View</button>
+          <button id="mapSatelliteViewBtn" class="ghost" type="button">Satellite View</button>
+          <button id="mapPixelViewBtn" class="ghost" type="button">Pixel View</button>
+        </div>
+
+        <div class="map-stage">
+          <div id="map"></div>
+          <div class="map-overlay">
+            <canvas id="mapOverlayCanvas" width="1200" height="700"></canvas>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:12px">The map can be read as route, direct satellite context, or simulated pixel observer view. Node selection drives the context reading and updates the observer logic from your detection matrix.</div>
+      </section>
     </main>
   </div>
 
-  <video id="video" autoplay playsinline muted style="display:none;"></video>
+  <video id="cameraVideo" autoplay playsinline muted class="hidden"></video>
+  <img id="uploadedImagePreview" class="hidden" alt="uploaded context" />
+  <img id="truckBaseImage" class="hidden" alt="truck base" />
+  <img id="truckMaskImage" class="hidden" alt="truck mask" />
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
-    const PRESETS = {
-      "Satellite High": {
-        pixel: 28, colors: 4, blur: 5,
+    const OBSERVERS = {
+      satHigh: {
+        id: "satHigh",
+        label: "Satellite High Orbit",
+        altitude: "400–700 km",
         resolution: "Very Low (10–30m per pixel)",
         visible: "Large color zones, terrain patterns, roads, urban blocks",
-        disappear: "Individual vehicles, small buildings, texture",
+        fade: "Individual vehicles, small buildings, texture",
         focus: "Color contrast, large-scale pattern, anomalies",
-        response: "Match large-scale color fields and reduce contrast with landscape."
+        logic: "Match large-scale color fields and reduce contrast with landscape",
+        pixelStrategy: "Use big blended pixels",
+        pixel: 56,
+        colors: 5,
+        blur: 7,
+        noise: 3,
+        mapPixel: 34,
+        desc: "Large colour zones dominate"
       },
-      "Satellite Low": {
-        pixel: 18, colors: 6, blur: 3,
+      satLow: {
+        id: "satLow",
+        label: "Satellite Low Orbit / High Res",
+        altitude: "300–500 km",
         resolution: "Medium (0.3–1m per pixel)",
         visible: "Building footprints, large vehicles, infrastructure layout",
-        disappear: "Fine textures, small objects, subtle material differences",
+        fade: "Fine textures, small objects, subtle material differences",
         focus: "Shape, geometry, contrast, shadow",
-        response: "Reduce obvious outline and avoid strong contrast."
+        logic: "Reduce obvious outline and avoid strong contrast",
+        pixelStrategy: "Use medium pixel grid",
+        pixel: 28,
+        colors: 6,
+        blur: 4,
+        noise: 5,
+        mapPixel: 20,
+        desc: "Shape and broad geometry are readable"
       },
-      "Drone High": {
-        pixel: 12, colors: 8, blur: 2,
+      droneHigh: {
+        id: "droneHigh",
+        label: "Drone High Altitude",
+        altitude: "100–500 m",
         resolution: "Medium",
         visible: "Building forms, roads, vehicles, movement",
-        disappear: "Surface texture, fine material detail",
+        fade: "Surface texture, fine material detail",
         focus: "Movement, spatial exposure, object contrast",
-        response: "Break object shape and avoid isolated exposure."
+        logic: "Break object shape and avoid isolated exposure",
+        pixelStrategy: "Use medium pixel grid",
+        pixel: 18,
+        colors: 7,
+        blur: 3,
+        noise: 7,
+        mapPixel: 14,
+        desc: "Object shape and route continuity are visible"
       },
-      "Drone Low": {
-        pixel: 7, colors: 10, blur: 1,
+      droneLow: {
+        id: "droneLow",
+        label: "Drone Low Altitude",
+        altitude: "20–100 m",
         resolution: "High",
         visible: "Material, surface color, openings, equipment",
-        disappear: "Micro texture depends on speed and motion",
+        fade: "Micro texture (depends on speed & motion)",
         focus: "Shape, activity, behavior, thermal if equipped",
-        response: "Disturb edges while keeping the surface believable up close."
+        logic: "Break object outline and disturb edges",
+        pixelStrategy: "Break object outline",
+        pixel: 10,
+        colors: 9,
+        blur: 1,
+        noise: 10,
+        mapPixel: 8,
+        desc: "Edges, texture, and openings begin to read"
       },
-      "Human Far": {
-        pixel: 10, colors: 8, blur: 1,
+      aircraft: {
+        id: "aircraft",
+        label: "Aircraft / Flight View",
+        altitude: "1,000–10,000 m",
+        resolution: "Low–Medium",
+        visible: "Urban layout, infrastructure networks, large objects",
+        fade: "Small vehicles, fine detail",
+        focus: "Pattern recognition, distribution, anomalies",
+        logic: "Match broad distribution fields",
+        pixelStrategy: "Use broad blended patches",
+        pixel: 24,
+        colors: 6,
+        blur: 3,
+        noise: 5,
+        mapPixel: 18,
+        desc: "Broad infrastructure distribution is visible"
+      },
+      humanFar: {
+        id: "humanFar",
+        label: "Human Far",
+        altitude: "200–1000 m",
         resolution: "Low",
         visible: "Silhouette, contrast, movement",
-        disappear: "Texture, material detail, color nuance",
+        fade: "Texture, material detail, color nuance",
         focus: "Outline, motion, contrast against background",
-        response: "Reduce silhouette clarity."
+        logic: "Reduce silhouette clarity",
+        pixelStrategy: "Break object outline",
+        pixel: 14,
+        colors: 8,
+        blur: 2,
+        noise: 8,
+        mapPixel: 12,
+        desc: "Silhouette and contrast matter most"
       },
-      "Human Close": {
-        pixel: 4, colors: 12, blur: 0,
+      humanMid: {
+        id: "humanMid",
+        label: "Human Mid",
+        altitude: "20–200 m",
+        resolution: "Medium",
+        visible: "Object type, color zones, openings",
+        fade: "Fine texture, subtle gradients",
+        focus: "Identity, function, access points",
+        logic: "Disrupt edges while keeping the material believable",
+        pixelStrategy: "Use mixed pixel field",
+        pixel: 8,
+        colors: 10,
+        blur: 1,
+        noise: 9,
+        mapPixel: 8,
+        desc: "Object type and material zones become clearer"
+      },
+      humanClose: {
+        id: "humanClose",
+        label: "Human Close",
+        altitude: "0–20 m",
         resolution: "Very High",
         visible: "Full material detail, texture, joints, wear",
-        disappear: "Nothing",
+        fade: "Nothing (full visibility)",
         focus: "Material, construction detail, tactile reading",
-        response: "Surface must read as normal and non-suspicious."
+        logic: "Maintain normal material appearance (not suspicious)",
+        pixelStrategy: "Surface must read as normal / non-suspicious",
+        pixel: 4,
+        colors: 12,
+        blur: 0,
+        noise: 4,
+        mapPixel: 4,
+        desc: "Full surface detail is visible"
       }
     };
 
-    const observerSelect = document.getElementById("observerSelect");
-    const pixelSizeInput = document.getElementById("pixelSize");
-    const colorLevelsInput = document.getElementById("colorLevels");
-    const blurAmountInput = document.getElementById("blurAmount");
-    const cameraModeSelect = document.getElementById("cameraMode");
-    const deviceSelect = document.getElementById("deviceSelect");
-    const presetInfo = document.getElementById("presetInfo");
-    const observerInfo = document.getElementById("observerInfo");
-    const designResponse = document.getElementById("designResponse");
+    const NODES = {
+      A: { key:"A", label:"Node A — Kavumu Airport", short:"Kavumu Airport", lat:-2.308978, lng:28.808803, zoom:15, zoneType:"Institutional" },
+      B: { key:"B", label:"Node B — Swap Point 1", short:"Node 1", lat:-2.044156, lng:28.898425, zoom:14, zoneType:"Edge" },
+      C: { key:"C", label:"Node C — Swap Point 2", short:"Node 2", lat:-1.770092, lng:28.999444, zoom:14, zoneType:"Road" },
+      D: { key:"D", label:"Node D — Swap Point 3", short:"Node 3", lat:-1.643053, lng:29.028147, zoom:14, zoneType:"Urban" },
+      E: { key:"E", label:"Node E — Swap Point 4", short:"Node 4", lat:-1.573544, lng:29.076892, zoom:14, zoneType:"Rural" },
+      F: { key:"F", label:"Node F — Goma", short:"Goma", lat:-1.658501, lng:29.220455, zoom:13, zoneType:"Urban" }
+    };
 
-    const processedCanvas = document.getElementById("processedCanvas");
-    const processedCtx = processedCanvas.getContext("2d");
+    const SEGMENTS = {
+      AB:["A","B"],
+      BC:["B","C"],
+      CD:["C","D"],
+      DE:["D","E"],
+      EF:["E","F"]
+    };
 
-    const truckCanvas = document.getElementById("truckCanvas");
-    const truckCtx = truckCanvas.getContext("2d");
+    const ROUTE_PATH = [
+      [-2.308978, 28.808803],
+      [-2.278, 28.817],
+      [-2.238, 28.822],
+      [-2.205, 28.832],
+      [-2.170, 28.842],
+      [-2.138, 28.850],
+      [-2.107, 28.860],
+      [-2.078, 28.875],
+      [-2.044156, 28.898425],
+      [-2.010, 28.915],
+      [-1.977, 28.930],
+      [-1.942, 28.944],
+      [-1.910, 28.956],
+      [-1.880, 28.970],
+      [-1.848, 28.982],
+      [-1.810, 28.992],
+      [-1.770092, 28.999444],
+      [-1.736, 29.004],
+      [-1.705, 29.009],
+      [-1.678, 29.015],
+      [-1.660, 29.020],
+      [-1.643053, 29.028147],
+      [-1.628, 29.036],
+      [-1.610, 29.046],
+      [-1.592, 29.058],
+      [-1.573544, 29.076892],
+      [-1.579, 29.098],
+      [-1.592, 29.122],
+      [-1.615, 29.151],
+      [-1.635, 29.182],
+      [-1.648, 29.205],
+      [-1.658501, 29.220455]
+    ];
 
-    const video = document.getElementById("video");
+    const state = {
+      inputMode: "map",
+      observerKey: "satHigh",
+      selectedNode: "A",
+      pixelSize: 56,
+      colorLevels: 5,
+      blur: 7,
+      noise: 3,
+      uploadedReady: false,
+      stream: null,
+      frameLoop: null,
+      map: null,
+      markers: {},
+      truckReady: false,
+      mapViewMode: "route",
+      routeLine: null
+    };
+
+    const $ = id => document.getElementById(id);
+
+    const observerSelect = $("observerSelect");
+    const pixelSizeRange = $("pixelSizeRange");
+    const colorLevelsRange = $("colorLevelsRange");
+    const blurRange = $("blurRange");
+    const noiseRange = $("noiseRange");
+
+    const pixelSizeValue = $("pixelSizeValue");
+    const colorLevelsValue = $("colorLevelsValue");
+    const blurValue = $("blurValue");
+    const noiseValue = $("noiseValue");
+
+    const modeTag = $("modeTag");
+    const observerTag = $("observerTag");
+    const observerReadTag = $("observerReadTag");
+
+    const activeNodeMetric = $("activeNodeMetric");
+    const zoneTypeMetric = $("zoneTypeMetric");
+    const resolutionMetric = $("resolutionMetric");
+    const visibleMetric = $("visibleMetric");
+    const fadeMetric = $("fadeMetric");
+    const focusMetric = $("focusMetric");
+    const logicMetric = $("logicMetric");
+    const pixelStrategyMetric = $("pixelStrategyMetric");
+
+    const analysisList = $("analysisList");
+    const paletteStrip = $("paletteStrip");
+    const patternNote = $("patternNote");
+    const observerNote = $("observerNote");
+
+    const plainScore = $("plainScore");
+    const pixelScore = $("pixelScore");
+
+    const mapModeBtn = $("mapModeBtn");
+    const uploadModeBtn = $("uploadModeBtn");
+    const cameraModeBtn = $("cameraModeBtn");
+    const uploadControls = $("uploadControls");
+    const cameraControls = $("cameraControls");
+    const imageUpload = $("imageUpload");
+    const cameraFacing = $("cameraFacing");
+    const cameraSelect = $("cameraSelect");
+    const startCameraBtn = $("startCameraBtn");
+    const stopCameraBtn = $("stopCameraBtn");
+    const overallBtn = $("overallBtn");
+    const downloadObserverBtn = $("downloadObserverBtn");
+
+    const mapRouteViewBtn = $("mapRouteViewBtn");
+    const mapSatelliteViewBtn = $("mapSatelliteViewBtn");
+    const mapPixelViewBtn = $("mapPixelViewBtn");
+
+    const contextCanvas = $("contextCanvas");
+    const contextCtx = contextCanvas.getContext("2d", { willReadFrequently:true });
+
+    const patternCanvas = $("patternCanvas");
+    const patternCtx = patternCanvas.getContext("2d", { willReadFrequently:true });
+
+    const truckCanvas = $("truckCanvas");
+    const truckCtx = truckCanvas.getContext("2d", { willReadFrequently:true });
+
+    const compareBgCanvas = $("compareBgCanvas");
+    const compareBgCtx = compareBgCanvas.getContext("2d", { willReadFrequently:true });
+
+    const comparePlainCanvas = $("comparePlainCanvas");
+    const comparePlainCtx = comparePlainCanvas.getContext("2d", { willReadFrequently:true });
+
+    const comparePixelCanvas = $("comparePixelCanvas");
+    const comparePixelCtx = comparePixelCanvas.getContext("2d", { willReadFrequently:true });
+
+    const mapOverlayCanvas = $("mapOverlayCanvas");
+    const mapOverlayCtx = mapOverlayCanvas.getContext("2d", { willReadFrequently:true });
+
+    const cameraVideo = $("cameraVideo");
+    const uploadedImagePreview = $("uploadedImagePreview");
+    const truckBaseImage = $("truckBaseImage");
+    const truckMaskImage = $("truckMaskImage");
+    const contextPlaceholder = $("contextPlaceholder");
 
     const sourceCanvas = document.createElement("canvas");
-    const sourceCtx = sourceCanvas.getContext("2d");
-
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently:true });
     const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
+    const tempCtx = tempCanvas.getContext("2d", { willReadFrequently:true });
 
-    let stream = null;
-    let animationId = null;
+    let truckBaseData = null;
+    let truckMaskBinary = null;
 
-    const truckImg = new Image();
-    const maskImg = new Image();
-
-    let truckImageData = null;
-    let maskAlpha = null;
-
-    function initObserverOptions() {
-      Object.keys(PRESETS).forEach(name => {
+    function initObserverSelect() {
+      Object.values(OBSERVERS).forEach(observer => {
         const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
+        option.value = observer.id;
+        option.textContent = observer.label;
         observerSelect.appendChild(option);
       });
-      observerSelect.value = "Satellite Low";
-      applyPreset();
+      observerSelect.value = state.observerKey;
+      applyObserverPreset();
     }
 
-    function applyPreset() {
-      const preset = PRESETS[observerSelect.value];
-      pixelSizeInput.value = preset.pixel;
-      colorLevelsInput.value = preset.colors;
-      blurAmountInput.value = preset.blur;
+    function applyObserverPreset() {
+      const observer = OBSERVERS[state.observerKey];
+      state.pixelSize = observer.pixel;
+      state.colorLevels = observer.colors;
+      state.blur = observer.blur;
+      state.noise = observer.noise;
 
-      presetInfo.innerHTML = `
-        <strong>Current Preset (${observerSelect.value})</strong><br><br>
-        • Pixel Size: ${preset.pixel}<br><br>
-        • Color Levels: ${preset.colors}<br><br>
-        • Blur: ${preset.blur}
-      `;
+      pixelSizeRange.value = state.pixelSize;
+      colorLevelsRange.value = state.colorLevels;
+      blurRange.value = state.blur;
+      noiseRange.value = state.noise;
 
-      observerInfo.innerHTML = `
-        <strong>Observer Reading</strong><br><br>
-        <strong>Resolution:</strong> ${preset.resolution}<br><br>
-        <strong>Clearly visible:</strong> ${preset.visible}<br><br>
-        <strong>Starts to disappear:</strong> ${preset.disappear}<br><br>
-        <strong>Key detection focus:</strong> ${preset.focus}
-      `;
+      syncSliderLabels();
 
-      designResponse.innerHTML = `<strong>Design Response</strong><br><br>${preset.response}`;
+      observerTag.textContent = observer.label;
+      observerReadTag.textContent = observer.desc;
+
+      resolutionMetric.textContent = observer.resolution;
+      visibleMetric.textContent = observer.visible;
+      fadeMetric.textContent = observer.fade;
+      focusMetric.textContent = observer.focus;
+      logicMetric.textContent = observer.logic;
+      pixelStrategyMetric.textContent = observer.pixelStrategy;
+
+      observerNote.textContent = `Observer test: ${observer.label}. ${observer.desc}. This panel compares the untreated truck against the pixel-adapted truck inside the same sampled background.`;
+
+      drawAll();
+      drawMapOverlay();
     }
 
-    observerSelect.addEventListener("change", applyPreset);
+    function syncSliderLabels() {
+      pixelSizeValue.textContent = `${state.pixelSize}px`;
+      colorLevelsValue.textContent = `${state.colorLevels}`;
+      blurValue.textContent = `${state.blur}`;
+      noiseValue.textContent = `${state.noise}`;
+    }
 
-    async function startCamera() {
-      stopCamera();
+    function setInputMode(mode) {
+      state.inputMode = mode;
+      mapModeBtn.className = mode === "map" ? "primary" : "ghost";
+      uploadModeBtn.className = mode === "upload" ? "primary" : "ghost";
+      cameraModeBtn.className = mode === "camera" ? "primary" : "ghost";
 
-      const deviceId = deviceSelect.value;
-      const facingMode = cameraModeSelect.value;
+      uploadControls.classList.toggle("hidden", mode !== "upload");
+      cameraControls.classList.toggle("hidden", mode !== "camera");
 
-      const constraints = {
-        video: deviceId
-          ? { deviceId: { exact: deviceId } }
-          : { facingMode: { ideal: facingMode } },
-        audio: false
+      modeTag.textContent = mode === "map" ? "Map context" : mode === "upload" ? "Upload mode" : "Live camera mode";
+
+      if (mode !== "camera") stopCamera();
+      drawAll();
+    }
+
+    function setMapViewMode(mode) {
+      state.mapViewMode = mode;
+      mapRouteViewBtn.className = mode === "route" ? "primary" : "ghost";
+      mapSatelliteViewBtn.className = mode === "satellite" ? "primary" : "ghost";
+      mapPixelViewBtn.className = mode === "pixel" ? "primary" : "ghost";
+      drawMapOverlay();
+    }
+
+    function updateNodeUI() {
+      const node = NODES[state.selectedNode];
+      activeNodeMetric.textContent = node.label;
+      zoneTypeMetric.textContent = node.zoneType;
+
+      document.querySelectorAll("[data-node]").forEach(btn => {
+        btn.className = btn.dataset.node === state.selectedNode ? "primary" : "ghost";
+      });
+    }
+
+    function buildNodeButtons() {
+      const wrap = $("nodeButtons");
+      Object.values(NODES).forEach(node => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ghost";
+        btn.dataset.node = node.key;
+        btn.textContent = node.key;
+        btn.addEventListener("click", () => focusNode(node.key));
+        wrap.appendChild(btn);
+      });
+    }
+
+    function buildSegmentButtons() {
+      const wrap = $("segmentButtons");
+      Object.entries(SEGMENTS).forEach(([key, nodes]) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ghost";
+        btn.textContent = `${key[0]}-${key[1]}`;
+        btn.addEventListener("click", () => focusSegment(nodes));
+        wrap.appendChild(btn);
+      });
+    }
+
+    function focusNode(key) {
+      state.selectedNode = key;
+      const node = NODES[key];
+      updateNodeUI();
+
+      if (state.map) {
+        state.map.flyTo([node.lat, node.lng], node.zoom, { duration: 1.2 });
+        if (state.markers[key]) state.markers[key].openPopup();
+      }
+
+      setTimeout(() => {
+        drawAll();
+        drawMapOverlay();
+      }, 450);
+    }
+
+    function focusSegment(nodeKeys) {
+      if (!state.map) return;
+      const latlngs = nodeKeys.map(k => [NODES[k].lat, NODES[k].lng]);
+      state.map.flyToBounds(L.latLngBounds(latlngs).pad(0.55), { duration: 1.2 });
+
+      setTimeout(() => {
+        drawAll();
+        drawMapOverlay();
+      }, 450);
+    }
+
+    function focusOverall() {
+      if (!state.map) return;
+      state.map.flyToBounds(L.latLngBounds(ROUTE_PATH).pad(0.2), { duration: 1.2 });
+
+      setTimeout(() => {
+        drawAll();
+        drawMapOverlay();
+      }, 450);
+    }
+
+    function initMap() {
+      const map = L.map("map", { preferCanvas:true }).setView([-1.88, 29.01], 9);
+      state.map = map;
+
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution:"Tiles © Esri", crossOrigin:true }
+      ).addTo(map);
+
+      state.routeLine = L.polyline(ROUTE_PATH, {
+        color:"#3f8cff",
+        weight:5,
+        opacity:.95
+      }).addTo(map);
+
+      Object.values(NODES).forEach(node => {
+        const marker = L.circleMarker([node.lat, node.lng], {
+          radius: node.key === "A" || node.key === "F" ? 10 : 8,
+          color:"#fff",
+          weight:2,
+          fillColor: node.key === "A" ? "#7dd3fc" : node.key === "F" ? "#fdba74" : "#fca5a5",
+          fillOpacity:.95
+        }).addTo(map);
+
+        marker.bindPopup(`<strong>${node.label}</strong><br>Zone: ${node.zoneType}`);
+        marker.on("click", () => focusNode(node.key));
+        state.markers[node.key] = marker;
+      });
+
+      map.whenReady(() => {
+        focusOverall();
+        drawMapOverlay();
+      });
+
+      map.on("moveend", () => {
+        if (state.inputMode === "map") drawAll();
+        drawMapOverlay();
+      });
+
+      map.on("zoomend", drawMapOverlay);
+      window.addEventListener("resize", () => setTimeout(resizeMapOverlayCanvas, 80));
+      resizeMapOverlayCanvas();
+    }
+
+    function resizeMapOverlayCanvas() {
+      const mapEl = $("map");
+      mapOverlayCanvas.width = mapEl.clientWidth;
+      mapOverlayCanvas.height = mapEl.clientHeight;
+      drawMapOverlay();
+    }
+
+    function resizeMapOverlayCanvasIfNeeded() {
+      const mapEl = $("map");
+      if (mapOverlayCanvas.width !== mapEl.clientWidth || mapOverlayCanvas.height !== mapEl.clientHeight) {
+        mapOverlayCanvas.width = mapEl.clientWidth;
+        mapOverlayCanvas.height = mapEl.clientHeight;
+      }
+    }
+
+    function drawMapOverlay() {
+      if (!state.map) return;
+
+      resizeMapOverlayCanvasIfNeeded();
+      mapOverlayCtx.clearRect(0, 0, mapOverlayCanvas.width, mapOverlayCanvas.height);
+
+      const node = NODES[state.selectedNode];
+      const point = state.map.latLngToContainerPoint([node.lat, node.lng]);
+      const radius = Math.min(mapOverlayCanvas.width, mapOverlayCanvas.height) * 0.28;
+
+      if (state.routeLine) {
+        state.routeLine.setStyle({ opacity: state.mapViewMode === "satellite" ? 0 : 0.95 });
+      }
+
+      Object.values(state.markers).forEach(marker => {
+        marker.setStyle({
+          opacity: state.mapViewMode === "satellite" ? 0 : 1,
+          fillOpacity: state.mapViewMode === "satellite" ? 0 : 0.95
+        });
+      });
+
+      if (state.mapViewMode === "route") {
+        mapOverlayCtx.strokeStyle = "rgba(255,205,86,.95)";
+        mapOverlayCtx.setLineDash([9,7]);
+        mapOverlayCtx.lineWidth = 2.5;
+        mapOverlayCtx.beginPath();
+        mapOverlayCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        mapOverlayCtx.stroke();
+        mapOverlayCtx.setLineDash([]);
+      }
+
+      if (state.mapViewMode === "satellite") {
+        mapOverlayCtx.fillStyle = "rgba(255,255,255,.10)";
+        mapOverlayCtx.beginPath();
+        mapOverlayCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        mapOverlayCtx.fill();
+
+        mapOverlayCtx.strokeStyle = "rgba(255,255,255,.78)";
+        mapOverlayCtx.lineWidth = 2;
+        mapOverlayCtx.beginPath();
+        mapOverlayCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        mapOverlayCtx.stroke();
+      }
+
+      if (state.mapViewMode === "pixel") {
+        const mapData = getMapSampleImageData();
+        if (mapData) {
+          const pixelCanvas = document.createElement("canvas");
+          pixelCanvas.width = mapOverlayCanvas.width;
+          pixelCanvas.height = mapOverlayCanvas.height;
+          pixelateCanvasFromImageData(
+            mapData,
+            pixelCanvas,
+            OBSERVERS[state.observerKey].mapPixel,
+            OBSERVERS[state.observerKey].colors,
+            OBSERVERS[state.observerKey].blur,
+            0
+          );
+
+          mapOverlayCtx.save();
+          mapOverlayCtx.globalAlpha = 0.88;
+          mapOverlayCtx.beginPath();
+          mapOverlayCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          mapOverlayCtx.clip();
+          mapOverlayCtx.drawImage(pixelCanvas, 0, 0, mapOverlayCanvas.width, mapOverlayCanvas.height);
+          mapOverlayCtx.restore();
+
+          mapOverlayCtx.strokeStyle = "rgba(255,255,255,.88)";
+          mapOverlayCtx.lineWidth = 2;
+          mapOverlayCtx.beginPath();
+          mapOverlayCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          mapOverlayCtx.stroke();
+        }
+      }
+    }
+
+    function fitImageToCanvas(img, canvas, ctx) {
+      const cw = canvas.width;
+      const ch = canvas.height;
+      const aspectImg = img.width / img.height;
+      const aspectCanvas = cw / ch;
+      let drawW, drawH, dx, dy;
+
+      if (aspectImg > aspectCanvas) {
+        drawW = cw;
+        drawH = cw / aspectImg;
+        dx = 0;
+        dy = (ch - drawH) / 2;
+      } else {
+        drawH = ch;
+        drawW = ch * aspectImg;
+        dy = 0;
+        dx = (cw - drawW) / 2;
+      }
+
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+    }
+
+    function getMapSampleImageData() {
+      if (!state.map) return null;
+
+      const mapEl = $("map");
+      const tileImgs = [...mapEl.querySelectorAll(".leaflet-tile-container img")]
+        .filter(img => img.complete && img.naturalWidth > 0);
+
+      if (!tileImgs.length) return null;
+
+      const sampleCanvas = document.createElement("canvas");
+      sampleCanvas.width = contextCanvas.width;
+      sampleCanvas.height = contextCanvas.height;
+      const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently:true });
+      sampleCtx.fillStyle = "#111";
+      sampleCtx.fillRect(0,0,sampleCanvas.width,sampleCanvas.height);
+
+      const mapRect = mapEl.getBoundingClientRect();
+      const targetNode = NODES[state.selectedNode];
+      const point = state.map.latLngToContainerPoint([targetNode.lat, targetNode.lng]);
+
+      const cropW = 280;
+      const cropH = 180;
+      const cropX = point.x - cropW / 2;
+      const cropY = point.y - cropH / 2;
+
+      tileImgs.forEach(img => {
+        try {
+          const r = img.getBoundingClientRect();
+          const x = r.left - mapRect.left - cropX;
+          const y = r.top - mapRect.top - cropY;
+          const scaleX = sampleCanvas.width / cropW;
+          const scaleY = sampleCanvas.height / cropH;
+          sampleCtx.drawImage(
+            img,
+            x * scaleX,
+            y * scaleY,
+            r.width * scaleX,
+            r.height * scaleY
+          );
+        } catch (e) {}
+      });
+
+      return sampleCtx.getImageData(0,0,sampleCanvas.width,sampleCanvas.height);
+    }
+
+    function getSourceImageData() {
+      contextCtx.clearRect(0,0,contextCanvas.width,contextCanvas.height);
+      contextCtx.fillStyle = "#000";
+      contextCtx.fillRect(0,0,contextCanvas.width,contextCanvas.height);
+
+      if (state.inputMode === "map") {
+        const mapData = getMapSampleImageData();
+        if (!mapData) {
+          contextPlaceholder.classList.remove("hidden");
+          contextPlaceholder.textContent = "Map tiles are still loading. Click the node again once the imagery settles.";
+          return null;
+        }
+        contextPlaceholder.classList.add("hidden");
+        contextCtx.putImageData(mapData,0,0);
+        return contextCtx.getImageData(0,0,contextCanvas.width,contextCanvas.height);
+      }
+
+      const source = state.inputMode === "camera" && state.stream && cameraVideo.videoWidth
+        ? cameraVideo
+        : state.uploadedReady
+          ? uploadedImagePreview
+          : null;
+
+      if (!source) {
+        contextPlaceholder.classList.remove("hidden");
+        contextPlaceholder.textContent = state.inputMode === "upload"
+          ? "Upload an image to analyse the surrounding context."
+          : "Start the camera to analyse the live context.";
+        return null;
+      }
+
+      contextPlaceholder.classList.add("hidden");
+      fitImageToCanvas(source, contextCanvas, contextCtx);
+      return contextCtx.getImageData(0,0,contextCanvas.width,contextCanvas.height);
+    }
+
+    function extractPalette(imageData, count = 6) {
+      const buckets = new Map();
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 20) {
+        const r = Math.round(data[i] / 32) * 32;
+        const g = Math.round(data[i + 1] / 32) * 32;
+        const b = Math.round(data[i + 2] / 32) * 32;
+        const key = `${r},${g},${b}`;
+        buckets.set(key, (buckets.get(key) || 0) + 1);
+      }
+
+      return [...buckets.entries()]
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, count)
+        .map(([key]) => key.split(",").map(Number));
+    }
+
+    function calcAnalysis(imageData) {
+      const data = imageData.data;
+      let total = 0;
+      let brightnessSum = 0;
+      let greenish = 0;
+      let brownish = 0;
+      let coolish = 0;
+      let contrastish = 0;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const avg = (r + g + b) / 3;
+
+        brightnessSum += avg;
+        total++;
+
+        if (g > r && g > b) greenish++;
+        if (r > g && g > b) brownish++;
+        if (b > r && b > g) coolish++;
+        if (Math.abs(r-g) > 28 || Math.abs(g-b) > 28 || Math.abs(r-b) > 28) contrastish++;
+      }
+
+      const brightness = brightnessSum / total;
+      const greenRatio = greenish / total;
+      const brownRatio = brownish / total;
+      const coolRatio = coolish / total;
+      const contrastRatio = contrastish / total;
+
+      let tone = "mixed field";
+      if (greenRatio > .30) tone = "green dominant";
+      else if (brownRatio > .24) tone = "earth / brown dominant";
+      else if (coolRatio > .22) tone = "cool / water-adjacent";
+
+      let contrast = "medium";
+      if (contrastRatio > .30) contrast = "high";
+      else if (contrastRatio < .16) contrast = "low";
+
+      let value = "mid-value";
+      if (brightness > 165) value = "light-value";
+      else if (brightness < 105) value = "dark-value";
+
+      return { tone, contrast, value };
+    }
+
+    function renderPalette(palette) {
+      paletteStrip.innerHTML = "";
+      palette.forEach((rgb, index) => {
+        const swatch = document.createElement("div");
+        swatch.className = "swatch";
+        swatch.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        const label = document.createElement("span");
+        label.textContent = `${index + 1}`;
+        swatch.appendChild(label);
+        paletteStrip.appendChild(swatch);
+      });
+    }
+
+    function renderAnalysis(node, observer, analysis) {
+      analysisList.innerHTML = `
+        <div><strong>Zone:</strong> ${node.zoneType}</div>
+        <div><strong>Detected tone field:</strong> ${analysis.tone}</div>
+        <div><strong>Detected contrast:</strong> ${analysis.contrast}</div>
+        <div><strong>Brightness class:</strong> ${analysis.value}</div>
+        <div><strong>Observer reading:</strong> ${observer.desc}</div>
+        <div><strong>System response:</strong> ${observer.logic}</div>
+      `;
+    }
+
+    function pixelateCanvasFromImageData(imageData, outCanvas, pixelSize, colorLevels, blurAmount, noiseAmount) {
+      const outCtx = outCanvas.getContext("2d", { willReadFrequently:true });
+
+      sourceCanvas.width = imageData.width;
+      sourceCanvas.height = imageData.height;
+      sourceCtx.putImageData(imageData, 0, 0);
+
+      tempCanvas.width = Math.max(8, Math.round(outCanvas.width / pixelSize));
+      tempCanvas.height = Math.max(8, Math.round(outCanvas.height / pixelSize));
+
+      tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
+      tempCtx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
+      tempCtx.drawImage(sourceCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+      outCtx.clearRect(0,0,outCanvas.width,outCanvas.height);
+      outCtx.imageSmoothingEnabled = false;
+      outCtx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, outCanvas.width, outCanvas.height);
+
+      const outData = outCtx.getImageData(0,0,outCanvas.width,outCanvas.height);
+      const data = outData.data;
+      const step = Math.max(1, Math.floor(256 / colorLevels));
+
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.floor(data[i] / step) * step;
+        data[i + 1] = Math.floor(data[i + 1] / step) * step;
+        data[i + 2] = Math.floor(data[i + 2] / step) * step;
+
+        if (noiseAmount > 0) {
+          const jitter = (Math.random() - .5) * noiseAmount;
+          data[i] = Math.max(0, Math.min(255, data[i] + jitter));
+          data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + jitter));
+          data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + jitter));
+        }
+      }
+
+      outCtx.putImageData(outData, 0, 0);
+      return outData;
+    }
+
+    function drawPattern(imageData) {
+      const observer = OBSERVERS[state.observerKey];
+      const node = NODES[state.selectedNode];
+
+      pixelateCanvasFromImageData(
+        imageData,
+        patternCanvas,
+        state.pixelSize,
+        state.colorLevels,
+        state.blur,
+        state.noise
+      );
+
+      patternNote.textContent =
+        `${observer.label}: ${observer.resolution}. Clearly visible here are ${observer.visible.toLowerCase()}. ` +
+        `The generated field therefore follows: ${observer.logic.toLowerCase()}. ` +
+        `For ${node.zoneType.toLowerCase()} context, the output uses ${observer.pixelStrategy.toLowerCase()}.`;
+    }
+
+    function drawTruckProjection() {
+      if (!state.truckReady || !truckBaseData || !truckMaskBinary) return;
+
+      const patternData = patternCtx.getImageData(0,0,patternCanvas.width,patternCanvas.height);
+
+      const fitCanvas = document.createElement("canvas");
+      fitCanvas.width = truckCanvas.width;
+      fitCanvas.height = truckCanvas.height;
+      const fitCtx = fitCanvas.getContext("2d", { willReadFrequently:true });
+
+      const pCanvas = document.createElement("canvas");
+      pCanvas.width = patternCanvas.width;
+      pCanvas.height = patternCanvas.height;
+      pCanvas.getContext("2d").putImageData(patternData,0,0);
+
+      fitCtx.imageSmoothingEnabled = false;
+      fitCtx.drawImage(pCanvas, 0, 0, fitCanvas.width, fitCanvas.height);
+
+      const fitted = fitCtx.getImageData(0,0,fitCanvas.width,fitCanvas.height).data;
+
+      const output = new ImageData(
+        new Uint8ClampedArray(truckBaseData.data),
+        truckBaseData.width,
+        truckBaseData.height
+      );
+
+      for (let p = 0, i = 0; i < output.data.length; i += 4, p++) {
+        if (truckMaskBinary[p] > 0) {
+          output.data[i] = fitted[i];
+          output.data[i + 1] = fitted[i + 1];
+          output.data[i + 2] = fitted[i + 2];
+        }
+      }
+
+      truckCtx.putImageData(output,0,0);
+    }
+
+    function averageRGB(imageData, maskFn = null) {
+      let r = 0, g = 0, b = 0, count = 0;
+      const data = imageData.data;
+
+      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+        if (!maskFn || maskFn(p, data)) {
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          count++;
+        }
+      }
+
+      if (!count) return [0,0,0];
+      return [r / count, g / count, b / count];
+    }
+
+    function colorDistance(a, b) {
+      const dr = a[0] - b[0];
+      const dg = a[1] - b[1];
+      const db = a[2] - b[2];
+      return Math.sqrt(dr * dr + dg * dg + db * db);
+    }
+
+    function labelLegibility(distance) {
+      if (distance > 60) return "High";
+      if (distance > 35) return "Medium";
+      return "Reduced";
+    }
+
+    function drawCompareCanvases() {
+      const observer = OBSERVERS[state.observerKey];
+      const node = NODES[state.selectedNode];
+
+      const bgData = contextCtx.getImageData(0,0,contextCanvas.width,contextCanvas.height);
+
+      pixelateCanvasFromImageData(bgData, compareBgCanvas, observer.pixel, observer.colors, observer.blur, observer.noise);
+      pixelateCanvasFromImageData(bgData, comparePlainCanvas, observer.pixel, observer.colors, observer.blur, observer.noise);
+      pixelateCanvasFromImageData(bgData, comparePixelCanvas, observer.pixel, observer.colors, observer.blur, observer.noise);
+
+      const placements = {
+        A:{x:120,y:82,w:120},
+        B:{x:122,y:82,w:120},
+        C:{x:122,y:86,w:120},
+        D:{x:122,y:84,w:120},
+        E:{x:118,y:82,w:120},
+        F:{x:124,y:84,w:120}
       };
+      const pos = placements[node.key] || {x:120,y:84,w:120};
+      const h = (truckCanvas.height / truckCanvas.width) * pos.w;
 
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        await video.play();
-        await populateDevices();
-        renderLoop();
-      } catch (err) {
-        alert("Could not start camera. Try another device or allow camera permission.");
-        console.error(err);
-      }
+      // Plain truck
+      comparePlainCtx.drawImage(truckBaseImage, pos.x, pos.y, pos.w, h);
+
+      // Pixel truck
+      comparePixelCtx.drawImage(truckCanvas, pos.x, pos.y, pos.w, h);
+
+      // Legibility estimate
+      const regionW = pos.w;
+      const regionH = h;
+      const bgRegion = compareBgCtx.getImageData(pos.x, pos.y, regionW, regionH);
+      const plainRegion = comparePlainCtx.getImageData(pos.x, pos.y, regionW, regionH);
+      const pixelRegion = comparePixelCtx.getImageData(pos.x, pos.y, regionW, regionH);
+
+      const bgAvg = averageRGB(bgRegion);
+      const plainAvg = averageRGB(plainRegion);
+      const pixelAvg = averageRGB(pixelRegion);
+
+      const plainDist = colorDistance(bgAvg, plainAvg);
+      const pixelDist = colorDistance(bgAvg, pixelAvg);
+
+      plainScore.textContent = labelLegibility(plainDist);
+      pixelScore.textContent = labelLegibility(pixelDist);
+
+      observerNote.textContent =
+        `${observer.label}: before treatment, the truck roof reads as a continuous inserted object against the sampled background. ` +
+        `After treatment, the roof is broken into ${observer.pixelStrategy.toLowerCase()} so its colour field aligns more closely with the surrounding context. ` +
+        `This does not make the truck invisible, but it reduces its legibility relative to the untreated condition.`;
     }
 
-    function stopCamera() {
-      if (animationId) cancelAnimationFrame(animationId);
-      animationId = null;
+    function drawAll() {
+      const sourceData = getSourceImageData();
+      if (!sourceData) return;
 
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
+      const palette = extractPalette(sourceData, 6);
+      const analysis = calcAnalysis(sourceData);
+      const node = NODES[state.selectedNode];
+      const observer = OBSERVERS[state.observerKey];
 
-      processedCtx.fillStyle = "#000";
-      processedCtx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
-
-      if (truckImageData) {
-        truckCtx.putImageData(truckImageData, 0, 0);
-      }
+      renderPalette(palette);
+      renderAnalysis(node, observer, analysis);
+      drawPattern(sourceData);
+      drawTruckProjection();
+      drawCompareCanvases();
     }
 
     async function populateDevices() {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(d => d.kind === "videoinput");
-        deviceSelect.innerHTML = `<option value="">Auto-select</option>`;
-        videoDevices.forEach((device, i) => {
-          const option = document.createElement("option");
-          option.value = device.deviceId;
-          option.textContent = device.label || `Camera ${i + 1}`;
-          deviceSelect.appendChild(option);
+        const cams = devices.filter(d => d.kind === "videoinput");
+        cameraSelect.innerHTML = `<option value="">Auto-select after permission</option>`;
+        cams.forEach((cam, i) => {
+          const opt = document.createElement("option");
+          opt.value = cam.deviceId;
+          opt.textContent = cam.label || `Camera ${i + 1}`;
+          cameraSelect.appendChild(opt);
         });
       } catch (err) {
         console.error(err);
       }
     }
 
-    function pixelateFrame(img, pixelSize, colorLevels, blurAmount) {
-      const w = processedCanvas.width;
-      const h = processedCanvas.height;
-
-      sourceCanvas.width = w;
-      sourceCanvas.height = h;
-      sourceCtx.drawImage(img, 0, 0, w, h);
-
-      const smallW = Math.max(1, Math.floor(w / pixelSize));
-      const smallH = Math.max(1, Math.floor(h / pixelSize));
-
-      tempCanvas.width = smallW;
-      tempCanvas.height = smallH;
-
-      tempCtx.clearRect(0, 0, smallW, smallH);
-      tempCtx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
-      tempCtx.drawImage(sourceCanvas, 0, 0, smallW, smallH);
-
-      processedCtx.clearRect(0, 0, w, h);
-      processedCtx.imageSmoothingEnabled = false;
-      processedCtx.drawImage(tempCanvas, 0, 0, smallW, smallH, 0, 0, w, h);
-
-      let imageData = processedCtx.getImageData(0, 0, w, h);
-      let data = imageData.data;
-
-      const step = Math.max(1, Math.floor(256 / colorLevels));
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.floor(data[i] / step) * step;
-        data[i + 1] = Math.floor(data[i + 1] / step) * step;
-        data[i + 2] = Math.floor(data[i + 2] / step) * step;
+    function loopCamera() {
+      if (state.inputMode === "camera" && state.stream && cameraVideo.videoWidth) {
+        drawAll();
+        state.frameLoop = requestAnimationFrame(loopCamera);
       }
-
-      processedCtx.putImageData(imageData, 0, 0);
-      return imageData;
     }
 
-    function applyToTruck(processedImageData) {
-      if (!truckImageData || !maskAlpha) return;
+    async function startCamera() {
+      stopCamera();
+      try {
+        const selected = cameraSelect.value;
+        const constraints = {
+          video: selected
+            ? { deviceId:{ exact:selected } }
+            : { facingMode:{ ideal:cameraFacing.value } },
+          audio:false
+        };
 
-      const output = new ImageData(
-        new Uint8ClampedArray(truckImageData.data),
-        truckImageData.width,
-        truckImageData.height
-      );
-
-      const resizedCanvas = document.createElement("canvas");
-      const resizedCtx = resizedCanvas.getContext("2d");
-      resizedCanvas.width = truckCanvas.width;
-      resizedCanvas.height = truckCanvas.height;
-
-      const procCanvas = document.createElement("canvas");
-      const procCtx = procCanvas.getContext("2d");
-      procCanvas.width = processedCanvas.width;
-      procCanvas.height = processedCanvas.height;
-      procCtx.putImageData(processedImageData, 0, 0);
-
-      resizedCtx.imageSmoothingEnabled = false;
-      resizedCtx.drawImage(procCanvas, 0, 0, truckCanvas.width, truckCanvas.height);
-
-      const resizedData = resizedCtx.getImageData(0, 0, truckCanvas.width, truckCanvas.height).data;
-
-      for (let i = 0; i < output.data.length; i += 4) {
-        if (maskAlpha[i / 4] > 0) {
-          output.data[i] = resizedData[i];
-          output.data[i + 1] = resizedData[i + 1];
-          output.data[i + 2] = resizedData[i + 2];
-        }
+        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraVideo.srcObject = state.stream;
+        await cameraVideo.play();
+        await populateDevices();
+        setInputMode("camera");
+        loopCamera();
+      } catch (err) {
+        console.error(err);
+        alert("Could not start camera. Check permissions or try another device.");
       }
-
-      truckCtx.putImageData(output, 0, 0);
     }
 
-    function renderLoop() {
-      if (!video.videoWidth || !video.videoHeight) {
-        animationId = requestAnimationFrame(renderLoop);
-        return;
+    function stopCamera() {
+      if (state.frameLoop) cancelAnimationFrame(state.frameLoop);
+      state.frameLoop = null;
+      if (state.stream) {
+        state.stream.getTracks().forEach(track => track.stop());
+        state.stream = null;
       }
-
-      const processed = pixelateFrame(
-        video,
-        Number(pixelSizeInput.value),
-        Number(colorLevelsInput.value),
-        Number(blurAmountInput.value)
-      );
-
-      applyToTruck(processed);
-      animationId = requestAnimationFrame(renderLoop);
+      cameraVideo.srcObject = null;
     }
 
-    function loadImages() {
+    function handleUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        uploadedImagePreview.onload = () => {
+          state.uploadedReady = true;
+          setInputMode("upload");
+          drawAll();
+        };
+        uploadedImagePreview.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadTruckAssets() {
       return new Promise((resolve, reject) => {
         let loaded = 0;
         function done() {
           loaded++;
           if (loaded === 2) resolve();
         }
-
-        truckImg.onload = done;
-        maskImg.onload = done;
-        truckImg.onerror = reject;
-        maskImg.onerror = reject;
-
-        truckImg.src = "truck_top.jpeg";
-        maskImg.src = "truck_mask.png";
+        truckBaseImage.onload = done;
+        truckMaskImage.onload = done;
+        truckBaseImage.onerror = reject;
+        truckMaskImage.onerror = reject;
+        truckBaseImage.src = "truck_top.jpeg";
+        truckMaskImage.src = "truck_mask.png";
       });
     }
 
     function buildTruckMask() {
-      truckCanvas.width = truckImg.width;
-      truckCanvas.height = truckImg.height;
-      truckCtx.drawImage(truckImg, 0, 0);
-      truckImageData = truckCtx.getImageData(0, 0, truckCanvas.width, truckCanvas.height);
+      truckCanvas.width = truckBaseImage.width;
+      truckCanvas.height = truckBaseImage.height;
+      truckCtx.drawImage(truckBaseImage,0,0);
+      truckBaseData = truckCtx.getImageData(0,0,truckCanvas.width,truckCanvas.height);
 
       const maskCanvas = document.createElement("canvas");
-      const maskCtx = maskCanvas.getContext("2d");
-      maskCanvas.width = maskImg.width;
-      maskCanvas.height = maskImg.height;
-      maskCtx.drawImage(maskImg, 0, 0);
+      maskCanvas.width = truckMaskImage.width;
+      maskCanvas.height = truckMaskImage.height;
+      const maskCtx = maskCanvas.getContext("2d", { willReadFrequently:true });
+      maskCtx.drawImage(truckMaskImage,0,0);
 
-      const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
-      maskAlpha = new Uint8Array(maskCanvas.width * maskCanvas.height);
+      const maskData = maskCtx.getImageData(0,0,maskCanvas.width,maskCanvas.height).data;
+      truckMaskBinary = new Uint8Array(maskCanvas.width * maskCanvas.height);
 
       for (let i = 0, p = 0; i < maskData.length; i += 4, p++) {
         const r = maskData[i];
         const g = maskData[i + 1];
         const b = maskData[i + 2];
-
-        const isGreen = g > 180 && r < 120 && b < 120;
-        maskAlpha[p] = isGreen ? 255 : 0;
+        truckMaskBinary[p] = g > 180 && r < 120 && b < 120 ? 255 : 0;
       }
 
-      truckCtx.putImageData(truckImageData, 0, 0);
+      state.truckReady = true;
     }
 
-    document.getElementById("startBtn").addEventListener("click", startCamera);
-    document.getElementById("stopBtn").addEventListener("click", stopCamera);
-    cameraModeSelect.addEventListener("change", () => {
-      if (stream) startCamera();
-    });
+    function downloadCanvas(canvas, filename, type) {
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = canvas.toDataURL(type);
+      link.click();
+    }
 
-    window.addEventListener("load", async () => {
-      initObserverOptions();
+    function initEvents() {
+      observerSelect.addEventListener("change", () => {
+        state.observerKey = observerSelect.value;
+        applyObserverPreset();
+      });
+
+      pixelSizeRange.addEventListener("input", () => {
+        state.pixelSize = Number(pixelSizeRange.value);
+        syncSliderLabels();
+        drawAll();
+        drawMapOverlay();
+      });
+
+      colorLevelsRange.addEventListener("input", () => {
+        state.colorLevels = Number(colorLevelsRange.value);
+        syncSliderLabels();
+        drawAll();
+        drawMapOverlay();
+      });
+
+      blurRange.addEventListener("input", () => {
+        state.blur = Number(blurRange.value);
+        syncSliderLabels();
+        drawAll();
+        drawMapOverlay();
+      });
+
+      noiseRange.addEventListener("input", () => {
+        state.noise = Number(noiseRange.value);
+        syncSliderLabels();
+        drawAll();
+        drawMapOverlay();
+      });
+
+      mapModeBtn.addEventListener("click", () => setInputMode("map"));
+      uploadModeBtn.addEventListener("click", () => setInputMode("upload"));
+      cameraModeBtn.addEventListener("click", () => setInputMode("camera"));
+
+      imageUpload.addEventListener("change", handleUpload);
+      startCameraBtn.addEventListener("click", startCamera);
+      stopCameraBtn.addEventListener("click", stopCamera);
+
+      cameraFacing.addEventListener("change", () => {
+        if (state.stream) startCamera();
+      });
+
+      cameraSelect.addEventListener("change", () => {
+        if (state.stream) startCamera();
+      });
+
+      overallBtn.addEventListener("click", focusOverall);
+      downloadObserverBtn.addEventListener("click", () => {
+        downloadCanvas(comparePixelCanvas, "observer-compare.png", "image/png");
+      });
+
+      mapRouteViewBtn.addEventListener("click", () => setMapViewMode("route"));
+      mapSatelliteViewBtn.addEventListener("click", () => setMapViewMode("satellite"));
+      mapPixelViewBtn.addEventListener("click", () => setMapViewMode("pixel"));
+    }
+
+    function bootstrapPlaceholders() {
+      contextPlaceholder.classList.add("hidden");
+    }
+
+    async function bootstrap() {
+      initObserverSelect();
+      buildNodeButtons();
+      buildSegmentButtons();
+      updateNodeUI();
+      initEvents();
+      initMap();
+      bootstrapPlaceholders();
+
       try {
-        await loadImages();
+        await loadTruckAssets();
         buildTruckMask();
       } catch (err) {
-        alert("Could not load truck_top.jpeg or truck_mask.png");
         console.error(err);
+        alert("Could not load truck_top.jpeg or truck_mask.png. Keep both files beside index.html.");
       }
-    });
+
+      await populateDevices();
+
+      setInputMode("map");
+      setMapViewMode("route");
+
+      setTimeout(() => {
+        drawAll();
+        drawMapOverlay();
+      }, 900);
+    }
+
+    window.addEventListener("beforeunload", stopCamera);
+    window.addEventListener("load", bootstrap);
   </script>
 </body>
 </html>
