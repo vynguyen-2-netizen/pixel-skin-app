@@ -764,7 +764,7 @@
     async function startCamera(){stopCamera();try{const selected=cameraSelect.value,constraints={video:selected?{deviceId:{exact:selected}}:{facingMode:{ideal:cameraFacing.value}},audio:false};state.stream=await navigator.mediaDevices.getUserMedia(constraints);cameraVideo.srcObject=state.stream;await cameraVideo.play();await populateDevices();setInputMode('camera');loopCamera();}catch(err){console.error(err);alert('Could not start camera. Check permissions or try another device.');}}
     function stopCamera(){if(state.frameLoop)cancelAnimationFrame(state.frameLoop);state.frameLoop=null;if(state.stream){state.stream.getTracks().forEach(track=>track.stop());state.stream=null;}cameraVideo.srcObject=null;}
     function handleUpload(event){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{uploadedImagePreview.onload=()=>{state.uploadedReady=true;setInputMode('upload');drawAll();};uploadedImagePreview.src=reader.result;};reader.readAsDataURL(file);}
-    function loadTruckAssets(){return new Promise((resolve,reject)=>{let loaded=0;function done(){loaded++;if(loaded===2)resolve();}truckBaseImage.onload=done;truckMaskImage.onload=done;truckBaseImage.onerror=reject;truckMaskImage.onerror=reject;truckBaseImage.src='truck_top.jpeg';truckMaskImage.src='truck_mask.png';});}
+    function loadTruckAssets(){return new Promise((resolve,reject)=>{let loaded=0;function done(){loaded++;if(loaded===2)resolve();}truckBaseImage.onload=done;truckMaskImage.onload=done;truckBaseImage.onerror=reject;truckMaskImage.onerror=reject;truckBaseImage.src='truck_top_new.png';truckMaskImage.src='truck_mask_new.png';});}
     function buildTruckMask(){truckCanvas.width=truckBaseImage.width;truckCanvas.height=truckBaseImage.height;truckCtx.drawImage(truckBaseImage,0,0);truckBaseData=truckCtx.getImageData(0,0,truckCanvas.width,truckCanvas.height);const maskCanvas=document.createElement('canvas');maskCanvas.width=truckMaskImage.width;maskCanvas.height=truckMaskImage.height;const maskCtx=maskCanvas.getContext('2d',{willReadFrequently:true});maskCtx.drawImage(truckMaskImage,0,0);const maskData=maskCtx.getImageData(0,0,maskCanvas.width,maskCanvas.height).data;truckMaskBinary=new Uint8Array(maskCanvas.width*maskCanvas.height);for(let i=0,p=0;i<maskData.length;i+=4,p++){const r=maskData[i],g=maskData[i+1],b=maskData[i+2];truckMaskBinary[p]=g>180&&r<120&&b<120?255:0;}state.truckReady=true;}
     function downloadCanvas(canvas,filename,type){const link=document.createElement('a');link.download=filename;link.href=canvas.toDataURL(type);link.click();}
 
@@ -825,7 +825,7 @@
 
     async function bootstrap(){
       initObserverSelect();buildNodeButtons();buildSegmentButtons();updateNodeUI();initEvents();initMap();
-      try{await loadTruckAssets();buildTruckMask();}catch(err){console.error(err);alert('Could not load truck_top.jpeg or truck_mask.png. Keep both files beside index.html.');}
+      try{await loadTruckAssets();buildTruckMask();}catch(err){console.error(err);alert('Could not load truck_top_new.png or truck_mask_new.png. Keep both files beside index.html.');}
       await populateDevices();setInputMode('map');setMapViewMode('route');setTimeout(()=>{drawAll();drawMapOverlay();},900);
     }
 
