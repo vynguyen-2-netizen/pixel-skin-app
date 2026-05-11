@@ -76,8 +76,8 @@
       font-weight:600;
       color:var(--text);
     }
-    select,button,input[type="file"]{width:100%;font:inherit}
-    select,button{
+    select,button,input[type="file"],input[type="text"]{width:100%;font:inherit}
+    select,button,input[type="text"]{
       padding:12px 14px;
       border-radius:14px;
       border:1px solid var(--line);
@@ -132,6 +132,12 @@
       display:grid;
       grid-template-columns:repeat(2,minmax(0,1fr));
       gap:18px;
+      align-items:stretch;
+    }
+    .row-2 > .card{
+      height:100%;
+      display:flex;
+      flex-direction:column;
     }
     .card{padding:16px;min-width:0}
     .title-row{
@@ -151,6 +157,19 @@
       position:relative;
     }
     .canvas-wrap.light{background:#f8fafc}
+    .canvas-wrap.truck-wrap{
+      min-height:330px;
+      background:#f8fafc;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .canvas-wrap.truck-wrap canvas{
+      width:100%;
+      max-height:300px;
+      height:auto;
+      object-fit:contain;
+    }
     .placeholder{
       position:absolute;
       inset:0;
@@ -243,7 +262,8 @@
       font-weight:600;
       margin-top:4px;
     }
-    .compare-canvas-wrap{background:#000;min-height:190px}
+    .compare-canvas-wrap{background:#000;min-height:210px}
+    .compare-canvas-wrap canvas{width:100%;height:auto}
     .score-grid{
       display:grid;
       grid-template-columns:repeat(2,minmax(0,1fr));
@@ -410,7 +430,7 @@
             <h2>3. Truck Projection</h2>
             <span class="pill"><span class="dot"></span>Mask-based</span>
           </div>
-          <div class="canvas-wrap light">
+          <div class="canvas-wrap light truck-wrap">
             <canvas id="truckCanvas" width="1024" height="640"></canvas>
           </div>
           <div class="note"><strong>Disclaimer:</strong> The projected skin is a design simulation based on approximate pixel/resolution logic, not a precise sensor-calibrated camouflage result.</div>
@@ -460,6 +480,17 @@
           <button id="mapSatelliteViewBtn" class="ghost" type="button">Satellite View</button>
           <button id="mapPixelViewBtn" class="ghost" type="button">Pixel View</button>
         </div>
+
+        <div class="section-label">Custom Map Selection</div>
+        <div class="grid-2" style="margin-bottom:10px;">
+          <button id="pickPointBtn" class="ghost" type="button">Pick Point on Map</button>
+          <button id="clearPointBtn" class="ghost" type="button">Clear Custom Point</button>
+        </div>
+        <div class="grid-3" style="margin-bottom:12px;">
+          <input id="latInput" type="text" placeholder="Latitude e.g. -1.770092" />
+          <input id="lngInput" type="text" placeholder="Longitude e.g. 28.999444" />
+          <button id="goCoordBtn" class="ghost" type="button">Use Coordinates</button>
+        </div>
         <div class="map-stage">
           <div id="map"></div>
           <div class="map-overlay"><canvas id="mapOverlayCanvas" width="1200" height="700"></canvas></div>
@@ -477,11 +508,10 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const OBSERVERS = {
-      satHigh:{id:'satHigh',label:'Satellite High Orbit',altitude:'400–700 km',resolution:'Very Low (10–30m per pixel)',visible:'Large color zones, terrain patterns, roads, urban blocks',fade:'Individual vehicles, small buildings, texture',focus:'Color contrast, large-scale pattern, anomalies',logic:'Match large-scale color fields and reduce contrast with landscape',pixelStrategy:'Use large colour-field blocks',pixel:48,colors:6,blur:2,noise:0,mapPixel:32,desc:'Large colour zones dominate'},
-      satLow:{id:'satLow',label:'Satellite Low Orbit / High Res',altitude:'300–500 km',resolution:'Medium (0.3–1m per pixel)',visible:'Building footprints, large vehicles, infrastructure layout',fade:'Fine textures, small objects, subtle material differences',focus:'Shape, geometry, contrast, shadow',logic:'Reduce obvious outline and avoid strong contrast',pixelStrategy:'Use structured medium blocks with clearer boundaries',pixel:26,colors:5,blur:1,noise:0,mapPixel:18,desc:'Shape and broad geometry are readable'},
-      droneHigh:{id:'droneHigh',label:'Drone High Altitude',altitude:'100–500 m',resolution:'Medium',visible:'Building forms, roads, vehicles, movement',fade:'Surface texture, fine material detail',focus:'Movement, spatial exposure, object contrast',logic:'Break object shape and avoid isolated exposure',pixelStrategy:'Use medium blocks with controlled edge disruption',pixel:16,colors:7,blur:1,noise:4,mapPixel:13,desc:'Object shape and route continuity are visible'},
-      droneLow:{id:'droneLow',label:'Drone Low Altitude',altitude:'20–100 m',resolution:'High',visible:'Material, surface color, openings, equipment',fade:'Micro texture (depends on speed & motion)',focus:'Shape, activity, behavior, thermal if equipped',logic:'Break object outline and disturb edges',pixelStrategy:'Use smaller irregular blocks and surface noise',pixel:9,colors:9,blur:0,noise:12,mapPixel:7,desc:'Edges, texture, and openings begin to read'},
-      aircraft:{id:'aircraft',label:'Aircraft / Flight View',altitude:'1,000–10,000 m',resolution:'Low–Medium',visible:'Urban layout, infrastructure networks, large objects',fade:'Small vehicles, fine detail',focus:'Pattern recognition, distribution, anomalies',logic:'Match broad distribution fields',pixelStrategy:'Use broad patch fields with softened transitions',pixel:32,colors:5,blur:2,noise:1,mapPixel:22,desc:'Broad infrastructure distribution is visible'}
+      satHigh:{id:'satHigh',label:'Satellite High Orbit',altitude:'400–700 km',resolution:'Very Low (10–30m per pixel)',visible:'Large color zones, terrain patterns, roads, urban blocks',fade:'Individual vehicles, small buildings, texture',focus:'Color contrast, large-scale pattern, anomalies',logic:'Match large-scale color fields and reduce contrast with landscape',pixelStrategy:'Use large colour-field blocks',pixel:48,colors:6,blur:2,noise:0,mapPixel:32,sampleW:420,sampleH:280,desc:'Large colour zones dominate'},
+      satLow:{id:'satLow',label:'Satellite Low Orbit / High Res',altitude:'300–500 km',resolution:'Medium (0.3–1m per pixel)',visible:'Building footprints, large vehicles, infrastructure layout',fade:'Fine textures, small objects, subtle material differences',focus:'Shape, geometry, contrast, shadow',logic:'Reduce obvious outline and avoid strong contrast',pixelStrategy:'Use structured medium blocks with clearer boundaries',pixel:26,colors:5,blur:1,noise:0,mapPixel:18,sampleW:300,sampleH:210,desc:'Shape and broad geometry are readable'},
+      droneHigh:{id:'droneHigh',label:'Drone High Altitude',altitude:'100–500 m',resolution:'Medium',visible:'Building forms, roads, vehicles, movement',fade:'Surface texture, fine material detail',focus:'Movement, spatial exposure, object contrast',logic:'Break object shape and avoid isolated exposure',pixelStrategy:'Use medium blocks with controlled edge disruption',pixel:16,colors:7,blur:1,noise:4,mapPixel:13,sampleW:220,sampleH:160,desc:'Object shape and route continuity are visible'},
+      droneLow:{id:'droneLow',label:'Drone Low Altitude',altitude:'20–100 m',resolution:'High',visible:'Material, surface color, openings, equipment',fade:'Micro texture (depends on speed & motion)',focus:'Shape, activity, behavior, thermal if equipped',logic:'Break object outline and disturb edges',pixelStrategy:'Use smaller irregular blocks and surface noise',pixel:9,colors:9,blur:0,noise:12,mapPixel:7,sampleW:150,sampleH:110,desc:'Edges, texture, and openings begin to read'}
     };
 
     const NODES = {
@@ -499,7 +529,7 @@
       [-2.308978,28.808803],[-2.278,28.817],[-2.238,28.822],[-2.205,28.832],[-2.170,28.842],[-2.138,28.850],[-2.107,28.860],[-2.078,28.875],[-2.044156,28.898425],[-2.010,28.915],[-1.977,28.930],[-1.942,28.944],[-1.910,28.956],[-1.880,28.970],[-1.848,28.982],[-1.810,28.992],[-1.770092,28.999444],[-1.736,29.004],[-1.705,29.009],[-1.678,29.015],[-1.660,29.020],[-1.643053,29.028147],[-1.628,29.036],[-1.610,29.046],[-1.592,29.058],[-1.573544,29.076892],[-1.579,29.098],[-1.592,29.122],[-1.615,29.151],[-1.635,29.182],[-1.648,29.205],[-1.658501,29.220455]
     ];
 
-    const state={inputMode:'map',observerKey:'satHigh',selectedNode:'A',selectedSegment:null,pixelSize:56,colorLevels:5,blur:7,noise:3,uploadedReady:false,stream:null,frameLoop:null,map:null,markers:{},truckReady:false,mapViewMode:'route',routeLine:null};
+    const state={inputMode:'map',observerKey:'satHigh',selectedNode:'A',selectedSegment:null,customPoint:null,pickMode:false,pixelSize:56,colorLevels:5,blur:7,noise:3,uploadedReady:false,stream:null,frameLoop:null,map:null,markers:{},customMarker:null,truckReady:false,mapViewMode:'route',routeLine:null};
     const $=id=>document.getElementById(id);
 
     const observerSelect=$('observerSelect'),pixelSizeRange=$('pixelSizeRange'),colorLevelsRange=$('colorLevelsRange'),blurRange=$('blurRange'),noiseRange=$('noiseRange');
@@ -507,7 +537,7 @@
     const modeTag=$('modeTag'),observerTag=$('observerTag'),observerReadTag=$('observerReadTag');
     const activeNodeMetric=$('activeNodeMetric'),zoneTypeMetric=$('zoneTypeMetric'),altitudeMetric=$('altitudeMetric'),resolutionMetric=$('resolutionMetric'),visibleMetric=$('visibleMetric'),fadeMetric=$('fadeMetric'),focusMetric=$('focusMetric'),logicMetric=$('logicMetric'),pixelStrategyMetric=$('pixelStrategyMetric');
     const analysisList=$('analysisList'),paletteStrip=$('paletteStrip'),patternNote=$('patternNote'),contextSpecNote=$('contextSpecNote'),observerNote=$('observerNote'),plainScore=$('plainScore'),pixelScore=$('pixelScore');
-    const mapModeBtn=$('mapModeBtn'),uploadModeBtn=$('uploadModeBtn'),cameraModeBtn=$('cameraModeBtn'),uploadControls=$('uploadControls'),cameraControls=$('cameraControls'),imageUpload=$('imageUpload'),cameraFacing=$('cameraFacing'),cameraSelect=$('cameraSelect'),startCameraBtn=$('startCameraBtn'),stopCameraBtn=$('stopCameraBtn'),overallBtn=$('overallBtn'),downloadObserverBtn=$('downloadObserverBtn'),downloadPixelBtn=$('downloadPixelBtn'),downloadPixelSvgBtn=$('downloadPixelSvgBtn');
+    const mapModeBtn=$('mapModeBtn'),uploadModeBtn=$('uploadModeBtn'),cameraModeBtn=$('cameraModeBtn'),uploadControls=$('uploadControls'),cameraControls=$('cameraControls'),imageUpload=$('imageUpload'),cameraFacing=$('cameraFacing'),cameraSelect=$('cameraSelect'),startCameraBtn=$('startCameraBtn'),stopCameraBtn=$('stopCameraBtn'),overallBtn=$('overallBtn'),downloadObserverBtn=$('downloadObserverBtn'),downloadPixelBtn=$('downloadPixelBtn'),downloadPixelSvgBtn=$('downloadPixelSvgBtn'),pickPointBtn=$('pickPointBtn'),clearPointBtn=$('clearPointBtn'),latInput=$('latInput'),lngInput=$('lngInput'),goCoordBtn=$('goCoordBtn');
     const mapRouteViewBtn=$('mapRouteViewBtn'),mapSatelliteViewBtn=$('mapSatelliteViewBtn'),mapPixelViewBtn=$('mapPixelViewBtn');
 
     const contextCanvas=$('contextCanvas'),contextCtx=contextCanvas.getContext('2d',{willReadFrequently:true});
@@ -540,6 +570,19 @@
     }
 
     function getActiveFocus(){
+      if(state.customPoint){
+        return {
+          key:'custom',
+          label:'Custom Map Point',
+          short:'Selected map point',
+          lat:state.customPoint.lat,
+          lng:state.customPoint.lng,
+          zoom:state.map?state.map.getZoom():13,
+          zoneType:'Custom Context',
+          isSegment:false,
+          isCustom:true
+        };
+      }
       if(state.selectedSegment){
         const pair=SEGMENTS[state.selectedSegment];
         const a=NODES[pair[0]], b=NODES[pair[1]];
@@ -559,7 +602,8 @@
 
     function updateContextSpecNote(){
       const observer=OBSERVERS[state.observerKey],focus=getActiveFocus();
-      contextSpecNote.textContent=`${focus.label} is being read through ${observer.label} (${observer.altitude}; ${observer.resolution}). At this scale, the key visible information is: ${observer.visible.toLowerCase()}. The pixel response therefore focuses on: ${observer.focus.toLowerCase()}.`;
+      const areaText=focus.isCustom?' This point was manually selected, showing that the system can generate a context-specific skin outside the fixed route.':'';
+      contextSpecNote.textContent=`${focus.label} is being read through ${observer.label} (${observer.altitude}; ${observer.resolution}). The sampled area size changes with the observer type: satellites read a wider context, while drones read a tighter local area.${areaText} At this scale, the key visible information is: ${observer.visible.toLowerCase()}.`; 
     }
 
     function syncSliderLabels(){pixelSizeValue.textContent=`${state.pixelSize}px`;colorLevelsValue.textContent=`${state.colorLevels}`;blurValue.textContent=`${state.blur}`;noiseValue.textContent=`${state.noise}`;}
@@ -583,8 +627,9 @@
       const focus=getActiveFocus();
       activeNodeMetric.textContent=focus.label;
       zoneTypeMetric.textContent=focus.zoneType;
-      document.querySelectorAll('[data-node]').forEach(btn=>btn.className=(!state.selectedSegment && btn.dataset.node===state.selectedNode)?'primary':'ghost');
-      document.querySelectorAll('[data-segment]').forEach(btn=>btn.className=(state.selectedSegment===btn.dataset.segment)?'primary':'ghost');
+      document.querySelectorAll('[data-node]').forEach(btn=>btn.className=(!state.selectedSegment && !state.customPoint && btn.dataset.node===state.selectedNode)?'primary':'ghost');
+      document.querySelectorAll('[data-segment]').forEach(btn=>btn.className=(!state.customPoint && state.selectedSegment===btn.dataset.segment)?'primary':'ghost');
+      pickPointBtn.className=state.pickMode?'primary':'ghost';
       updateContextSpecNote();
     }
 
@@ -594,6 +639,8 @@
     function focusNode(key){
       state.selectedNode=key;
       state.selectedSegment=null;
+      state.customPoint=null;
+      state.pickMode=false;
       const node=NODES[key];
       updateNodeUI();
       if(state.map){state.map.flyTo([node.lat,node.lng],node.zoom,{duration:1.2});state.markers[key]?.openPopup();}
@@ -603,6 +650,8 @@
     function focusSegment(segmentKey){
       if(!state.map)return;
       state.selectedSegment=segmentKey;
+      state.customPoint=null;
+      state.pickMode=false;
       const nodeKeys=SEGMENTS[segmentKey];
       const latlngs=nodeKeys.map(k=>[NODES[k].lat,NODES[k].lng]);
       updateNodeUI();
@@ -610,6 +659,48 @@
       setTimeout(()=>{drawAll();drawMapOverlay();},450);
     }
     function focusOverall(){if(!state.map)return;state.map.flyToBounds(L.latLngBounds(ROUTE_PATH).pad(.2),{duration:1.2});setTimeout(()=>{drawAll();drawMapOverlay();},450);}
+
+    function startPickPoint(){
+      state.pickMode=true;
+      updateNodeUI();
+      modeTag.textContent='Pick a map point';
+      if(state.map)state.map.getContainer().style.cursor='crosshair';
+    }
+
+    function clearCustomPoint(){
+      state.customPoint=null;
+      state.pickMode=false;
+      if(latInput&&lngInput){latInput.value='';lngInput.value='';}
+      if(state.customMarker){state.map.removeLayer(state.customMarker);state.customMarker=null;}
+      if(state.map)state.map.getContainer().style.cursor='';
+      updateNodeUI();
+      drawAll();
+      drawMapOverlay();
+    }
+
+    function setCustomPoint(latlng){
+      state.customPoint={lat:latlng.lat,lng:latlng.lng};
+      if(latInput&&lngInput){latInput.value=Number(latlng.lat).toFixed(6);lngInput.value=Number(latlng.lng).toFixed(6);}
+      state.selectedSegment=null;
+      state.pickMode=false;
+      if(state.map)state.map.getContainer().style.cursor='';
+      if(state.customMarker)state.map.removeLayer(state.customMarker);
+      state.customMarker=L.circleMarker([latlng.lat,latlng.lng],{radius:9,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:.95}).addTo(state.map);
+      state.customMarker.bindPopup('<strong>Custom Map Point</strong><br>Pixel skin generated from this selected context.').openPopup();
+      if(state.map)state.map.flyTo([latlng.lat,latlng.lng],state.map.getZoom(),{duration:.8});
+      updateNodeUI();
+      setTimeout(()=>{drawAll();drawMapOverlay();},300);
+    }
+
+    function useTypedCoordinates(){
+      const lat=parseFloat(latInput.value.trim());
+      const lng=parseFloat(lngInput.value.trim());
+      if(Number.isNaN(lat)||Number.isNaN(lng)||lat<-90||lat>90||lng<-180||lng>180){
+        alert('Please enter valid coordinates. Example: -1.770092 and 28.999444');
+        return;
+      }
+      setCustomPoint({lat,lng});
+    }
 
     function initMap(){
       const map=L.map('map',{preferCanvas:true}).setView([-1.88,29.01],9);state.map=map;
@@ -619,6 +710,7 @@
       map.whenReady(()=>{focusOverall();drawMapOverlay();});
       map.on('moveend',()=>{if(state.inputMode==='map')drawAll();drawMapOverlay();});
       map.on('zoomend',drawMapOverlay);
+      map.on('click',e=>{if(state.pickMode)setCustomPoint(e.latlng);});
       window.addEventListener('resize',()=>setTimeout(resizeMapOverlayCanvas,80));
       resizeMapOverlayCanvas();
     }
@@ -656,7 +748,7 @@
       const mapEl=$('map'),tileImgs=[...mapEl.querySelectorAll('.leaflet-tile-container img')].filter(img=>img.complete&&img.naturalWidth>0);
       if(!tileImgs.length)return null;
       const sampleCanvas=document.createElement('canvas');sampleCanvas.width=contextCanvas.width;sampleCanvas.height=contextCanvas.height;const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});sampleCtx.fillStyle='#111';sampleCtx.fillRect(0,0,sampleCanvas.width,sampleCanvas.height);
-      const mapRect=mapEl.getBoundingClientRect(),focus=getActiveFocus(),point=state.map.latLngToContainerPoint([focus.lat,focus.lng]),cropW=280,cropH=180,cropX=point.x-cropW/2,cropY=point.y-cropH/2;
+      const mapRect=mapEl.getBoundingClientRect(),focus=getActiveFocus(),observer=OBSERVERS[state.observerKey],point=state.map.latLngToContainerPoint([focus.lat,focus.lng]),cropW=observer.sampleW||280,cropH=observer.sampleH||180,cropX=point.x-cropW/2,cropY=point.y-cropH/2;
       tileImgs.forEach(img=>{try{const r=img.getBoundingClientRect(),x=r.left-mapRect.left-cropX,y=r.top-mapRect.top-cropY,scaleX=sampleCanvas.width/cropW,scaleY=sampleCanvas.height/cropH;sampleCtx.drawImage(img,x*scaleX,y*scaleY,r.width*scaleX,r.height*scaleY);}catch(e){}});
       return sampleCtx.getImageData(0,0,sampleCanvas.width,sampleCanvas.height);
     }
@@ -744,8 +836,12 @@
       pixelateCanvasFromImageData(bgData,compareBgCanvas,observer.pixel,observer.colors,observer.blur,observer.noise);
       pixelateCanvasFromImageData(bgData,comparePlainCanvas,observer.pixel,observer.colors,observer.blur,observer.noise);
       pixelateCanvasFromImageData(bgData,comparePixelCanvas,observer.pixel,observer.colors,observer.blur,observer.noise);
-      const placements={A:{x:120,y:82,w:120},B:{x:122,y:82,w:120},C:{x:122,y:86,w:120},D:{x:122,y:84,w:120},E:{x:118,y:82,w:120},F:{x:124,y:84,w:120}},pos=placements[node.key]||{x:120,y:84,w:120},h=(truckCanvas.height/truckCanvas.width)*pos.w;
-      comparePlainCtx.drawImage(truckBaseImage,pos.x,pos.y,pos.w,h);
+      const placements={A:{x:58,y:76,w:240},B:{x:58,y:76,w:240},C:{x:58,y:76,w:240},D:{x:58,y:76,w:240},E:{x:58,y:76,w:240},F:{x:58,y:76,w:240}},pos=placements[node.key]||{x:58,y:76,w:240},h=(truckCanvas.height/truckCanvas.width)*pos.w;
+      const plainTruckCanvas=document.createElement('canvas');
+      plainTruckCanvas.width=truckCanvas.width;
+      plainTruckCanvas.height=truckCanvas.height;
+      plainTruckCanvas.getContext('2d').putImageData(truckBaseData,0,0);
+      comparePlainCtx.drawImage(plainTruckCanvas,pos.x,pos.y,pos.w,h);
       comparePixelCtx.drawImage(truckCanvas,pos.x,pos.y,pos.w,h);
       const bgRegion=compareBgCtx.getImageData(pos.x,pos.y,pos.w,h),plainRegion=comparePlainCtx.getImageData(pos.x,pos.y,pos.w,h),pixelRegion=comparePixelCtx.getImageData(pos.x,pos.y,pos.w,h);
       const bgAvg=averageRGB(bgRegion),plainAvg=averageRGB(plainRegion),pixelAvg=averageRGB(pixelRegion),plainDist=colorDistance(bgAvg,plainAvg),pixelDist=colorDistance(bgAvg,pixelAvg);
@@ -765,7 +861,55 @@
     function stopCamera(){if(state.frameLoop)cancelAnimationFrame(state.frameLoop);state.frameLoop=null;if(state.stream){state.stream.getTracks().forEach(track=>track.stop());state.stream=null;}cameraVideo.srcObject=null;}
     function handleUpload(event){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{uploadedImagePreview.onload=()=>{state.uploadedReady=true;setInputMode('upload');drawAll();};uploadedImagePreview.src=reader.result;};reader.readAsDataURL(file);}
     function loadTruckAssets(){return new Promise((resolve,reject)=>{let loaded=0;function done(){loaded++;if(loaded===2)resolve();}truckBaseImage.onload=done;truckMaskImage.onload=done;truckBaseImage.onerror=reject;truckMaskImage.onerror=reject;truckBaseImage.src='truck_top_new.png';truckMaskImage.src='truck_mask_new.png';});}
-    function buildTruckMask(){truckCanvas.width=truckBaseImage.width;truckCanvas.height=truckBaseImage.height;truckCtx.drawImage(truckBaseImage,0,0);truckBaseData=truckCtx.getImageData(0,0,truckCanvas.width,truckCanvas.height);const maskCanvas=document.createElement('canvas');maskCanvas.width=truckMaskImage.width;maskCanvas.height=truckMaskImage.height;const maskCtx=maskCanvas.getContext('2d',{willReadFrequently:true});maskCtx.drawImage(truckMaskImage,0,0);const maskData=maskCtx.getImageData(0,0,maskCanvas.width,maskCanvas.height).data;truckMaskBinary=new Uint8Array(maskCanvas.width*maskCanvas.height);for(let i=0,p=0;i<maskData.length;i+=4,p++){const r=maskData[i],g=maskData[i+1],b=maskData[i+2];truckMaskBinary[p]=g>180&&r<120&&b<120?255:0;}state.truckReady=true;}
+    function buildTruckMask(){
+      // Crop away empty white/transparent space around the truck image.
+      // This does not shrink the truck itself — it only trims the unused canvas area.
+      const fullBaseCanvas=document.createElement('canvas');
+      fullBaseCanvas.width=truckBaseImage.width;
+      fullBaseCanvas.height=truckBaseImage.height;
+      const fullBaseCtx=fullBaseCanvas.getContext('2d',{willReadFrequently:true});
+      fullBaseCtx.drawImage(truckBaseImage,0,0);
+      const fullBaseData=fullBaseCtx.getImageData(0,0,fullBaseCanvas.width,fullBaseCanvas.height);
+      const data=fullBaseData.data;
+      let minX=fullBaseCanvas.width,minY=fullBaseCanvas.height,maxX=0,maxY=0;
+
+      for(let y=0;y<fullBaseCanvas.height;y++){
+        for(let x=0;x<fullBaseCanvas.width;x++){
+          const i=(y*fullBaseCanvas.width+x)*4;
+          const r=data[i],g=data[i+1],b=data[i+2],a=data[i+3];
+          const isNotWhite=!(r>245&&g>245&&b>245);
+          const isVisible=a>20&&isNotWhite;
+          if(isVisible){
+            if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y;
+          }
+        }
+      }
+
+      if(maxX<=minX||maxY<=minY){minX=0;minY=0;maxX=fullBaseCanvas.width;maxY=fullBaseCanvas.height;}
+      const margin=24;
+      minX=Math.max(0,minX-margin);minY=Math.max(0,minY-margin);
+      maxX=Math.min(fullBaseCanvas.width,maxX+margin);maxY=Math.min(fullBaseCanvas.height,maxY+margin);
+      const cropW=maxX-minX,cropH=maxY-minY;
+
+      truckCanvas.width=cropW;
+      truckCanvas.height=cropH;
+      truckCtx.clearRect(0,0,cropW,cropH);
+      truckCtx.drawImage(truckBaseImage,minX,minY,cropW,cropH,0,0,cropW,cropH);
+      truckBaseData=truckCtx.getImageData(0,0,cropW,cropH);
+
+      const maskCanvas=document.createElement('canvas');
+      maskCanvas.width=cropW;
+      maskCanvas.height=cropH;
+      const maskCtx=maskCanvas.getContext('2d',{willReadFrequently:true});
+      maskCtx.drawImage(truckMaskImage,minX,minY,cropW,cropH,0,0,cropW,cropH);
+      const maskData=maskCtx.getImageData(0,0,cropW,cropH).data;
+      truckMaskBinary=new Uint8Array(cropW*cropH);
+      for(let i=0,p=0;i<maskData.length;i+=4,p++){
+        const r=maskData[i],g=maskData[i+1],b=maskData[i+2];
+        truckMaskBinary[p]=g>180&&r<140&&b<140?255:0;
+      }
+      state.truckReady=true;
+    }
     function downloadCanvas(canvas,filename,type){const link=document.createElement('a');link.download=filename;link.href=canvas.toDataURL(type);link.click();}
 
     function canvasToSVG(canvas,blockSize=12){
@@ -817,6 +961,11 @@
       imageUpload.addEventListener('change',handleUpload);startCameraBtn.addEventListener('click',startCamera);stopCameraBtn.addEventListener('click',stopCamera);
       cameraFacing.addEventListener('change',()=>{if(state.stream)startCamera();});cameraSelect.addEventListener('change',()=>{if(state.stream)startCamera();});
       overallBtn.addEventListener('click',focusOverall);
+      pickPointBtn.addEventListener('click',startPickPoint);
+      clearPointBtn.addEventListener('click',clearCustomPoint);
+      goCoordBtn.addEventListener('click',useTypedCoordinates);
+      latInput.addEventListener('keydown',e=>{if(e.key==='Enter')useTypedCoordinates();});
+      lngInput.addEventListener('keydown',e=>{if(e.key==='Enter')useTypedCoordinates();});
       downloadObserverBtn.addEventListener('click',()=>downloadCanvas(comparePixelCanvas,'observer-compare.png','image/png'));
       downloadPixelBtn.addEventListener('click',()=>downloadCanvas(patternCanvas,`pixel-field-${state.selectedNode}-${OBSERVERS[state.observerKey].id}.png`,'image/png'));
       downloadPixelSvgBtn.addEventListener('click',downloadPixelSVG);
