@@ -741,7 +741,18 @@
       }
     }
 
-    function fitImageToCanvas(img,canvas,ctx){const cw=canvas.width,ch=canvas.height,aspectImg=img.width/img.height,aspectCanvas=cw/ch;let drawW,drawH,dx,dy;if(aspectImg>aspectCanvas){drawW=cw;drawH=cw/aspectImg;dx=0;dy=(ch-drawH)/2;}else{drawH=ch;drawW=ch*aspectImg;dy=0;dx=(cw-drawW)/2;}ctx.clearRect(0,0,cw,ch);ctx.drawImage(img,dx,dy,drawW,drawH);}
+    function fitImageToCanvas(img,canvas,ctx){
+      const cw=canvas.width,ch=canvas.height;
+      const sourceW=img.videoWidth||img.naturalWidth||img.width||cw;
+      const sourceH=img.videoHeight||img.naturalHeight||img.height||ch;
+      if(!sourceW||!sourceH){return;}
+      const aspectImg=sourceW/sourceH,aspectCanvas=cw/ch;
+      let drawW,drawH,dx,dy;
+      if(aspectImg>aspectCanvas){drawW=cw;drawH=cw/aspectImg;dx=0;dy=(ch-drawH)/2;}
+      else{drawH=ch;drawW=ch*aspectImg;dy=0;dx=(cw-drawW)/2;}
+      ctx.clearRect(0,0,cw,ch);
+      ctx.drawImage(img,dx,dy,drawW,drawH);
+    }
 
     function getMapSampleImageData(){
       if(!state.map)return null;
@@ -760,8 +771,8 @@
         if(!mapData){contextPlaceholder.classList.remove('hidden');contextPlaceholder.textContent='Map tiles are still loading. Click the node again once the imagery settles.';return null;}
         contextPlaceholder.classList.add('hidden');contextCtx.putImageData(mapData,0,0);return contextCtx.getImageData(0,0,contextCanvas.width,contextCanvas.height);
       }
-      const source=state.inputMode==='camera'&&state.stream&&cameraVideo.videoWidth?cameraVideo:state.uploadedReady?uploadedImagePreview:null;
-      if(!source){contextPlaceholder.classList.remove('hidden');contextPlaceholder.textContent=state.inputMode==='upload'?'Upload an image to analyse the surrounding context.':'Start the camera to analyse the live context.';return null;}
+      const source=state.inputMode==='camera'&&state.stream&&cameraVideo.readyState>=2&&cameraVideo.videoWidth>0?cameraVideo:state.uploadedReady?uploadedImagePreview:null;
+      if(!source){contextPlaceholder.classList.remove('hidden');contextPlaceholder.textContent=state.inputMode==='upload'?'Upload an image to analyse the surrounding context.':state.stream?'Camera is connecting — wait one second or press Start Camera again.':'Start the camera to analyse the live context.';return null;}
       contextPlaceholder.classList.add('hidden');fitImageToCanvas(source,contextCanvas,contextCtx);return contextCtx.getImageData(0,0,contextCanvas.width,contextCanvas.height);
     }
 
@@ -855,9 +866,75 @@
       renderPalette(palette);renderAnalysis(focus,observer,analysis);updateContextSpecNote();drawPattern(sourceData);drawTruckProjection();drawCompareCanvases();
     }
 
-    async function populateDevices(){try{const devices=await navigator.mediaDevices.enumerateDevices(),cams=devices.filter(d=>d.kind==='videoinput');cameraSelect.innerHTML='<option value="">Auto-select after permission</option>';cams.forEach((cam,i)=>{const opt=document.createElement('option');opt.value=cam.deviceId;opt.textContent=cam.label||`Camera ${i+1}`;cameraSelect.appendChild(opt);});}catch(err){console.error(err);}}
-    function loopCamera(){if(state.inputMode==='camera'&&state.stream&&cameraVideo.videoWidth){drawAll();state.frameLoop=requestAnimationFrame(loopCamera);}}
-    async function startCamera(){stopCamera();try{const selected=cameraSelect.value,constraints={video:selected?{deviceId:{exact:selected}}:{facingMode:{ideal:cameraFacing.value}},audio:false};state.stream=await navigator.mediaDevices.getUserMedia(constraints);cameraVideo.srcObject=state.stream;await cameraVideo.play();await populateDevices();setInputMode('camera');loopCamera();}catch(err){console.error(err);alert('Could not start camera. Check permissions or try another device.');}}
+    async function populateDevices(keepDeviceId=null){
+      try{
+        const current=keepDeviceId!==null?keepDeviceId:cameraSelect.value;
+        const devices=await navigator.mediaDevices.enumerateDevices();
+        const cams=devices.filter(d=>d.kind==='videoinput');
+        cameraSelect.innerHTML='<option value="">Auto-select</option>';
+        cams.forEach((cam,i)=>{
+          const opt=document.createElement('option');
+          opt.value=cam.deviceId;
+          opt.textContent=cam.label||`Camera ${i+1}`;
+          cameraSelect.appendChild(opt);
+        });
+        if(current&&cams.some(cam=>cam.deviceId===current)){
+          cameraSelect.value=current;
+        }
+      }catch(err){console.error(err);}
+    }
+    function loopCamera(){
+      if(state.inputMode==='camera'&&state.stream){
+        if(cameraVideo.readyState>=2&&cameraVideo.videoWidth>0&&cameraVideo.videoHeight>0){
+          drawAll();
+        }
+        state.frameLoop=requestAnimationFrame(loopCamera);
+      }
+    }
+    async function startCamera(){
+      stopCamera();
+      try{
+        if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+          alert('Camera access is not available in this browser. Try Chrome, Edge, or Safari over HTTPS.');
+          return;
+        }
+
+        const selected=cameraSelect.value;
+        const constraints={
+          video:selected
+            ? {deviceId:{exact:selected}}
+            : {facingMode:{ideal:cameraFacing.value}, width:{ideal:1280}, height:{ideal:720}},
+          audio:false
+        };
+
+        state.stream=await navigator.mediaDevices.getUserMedia(constraints);
+        cameraVideo.srcObject=state.stream;
+        cameraVideo.muted=true;
+        cameraVideo.playsInline=true;
+
+        await new Promise(resolve=>{
+          if(cameraVideo.readyState>=2&&cameraVideo.videoWidth>0) resolve();
+          else cameraVideo.onloadedmetadata=()=>resolve();
+        });
+
+        await cameraVideo.play();
+        await populateDevices(selected);
+        if(selected) cameraSelect.value=selected;
+        setInputMode('camera');
+
+        if(state.frameLoop) cancelAnimationFrame(state.frameLoop);
+        loopCamera();
+      }catch(err){
+        console.error(err);
+        let msg='Could not start camera. ';
+        if(location.protocol!=='https:'&&location.hostname!=='localhost') msg+='Camera requires HTTPS. Use the GitHub Pages link, not a file preview. ';
+        if(err.name==='NotAllowedError') msg+='Permission was blocked — allow camera access in the browser address bar.';
+        else if(err.name==='NotFoundError') msg+='No camera was found — try another device or upload an image instead.';
+        else if(err.name==='NotReadableError') msg+='The camera may already be used by Zoom/Teams/another tab. Close those and try again.';
+        else msg+='Try refreshing, allowing camera permission, or switching browser/device.';
+        alert(msg);
+      }
+    }
     function stopCamera(){if(state.frameLoop)cancelAnimationFrame(state.frameLoop);state.frameLoop=null;if(state.stream){state.stream.getTracks().forEach(track=>track.stop());state.stream=null;}cameraVideo.srcObject=null;}
     function handleUpload(event){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{uploadedImagePreview.onload=()=>{state.uploadedReady=true;setInputMode('upload');drawAll();};uploadedImagePreview.src=reader.result;};reader.readAsDataURL(file);}
     function loadTruckAssets(){return new Promise((resolve,reject)=>{let loaded=0;function done(){loaded++;if(loaded===2)resolve();}truckBaseImage.onload=done;truckMaskImage.onload=done;truckBaseImage.onerror=reject;truckMaskImage.onerror=reject;truckBaseImage.src='truck_top_new.png';truckMaskImage.src='truck_mask_new.png';});}
@@ -959,7 +1036,9 @@
       noiseRange.addEventListener('input',()=>{state.noise=Number(noiseRange.value);syncSliderLabels();drawAll();drawMapOverlay();});
       mapModeBtn.addEventListener('click',()=>setInputMode('map'));uploadModeBtn.addEventListener('click',()=>setInputMode('upload'));cameraModeBtn.addEventListener('click',()=>setInputMode('camera'));
       imageUpload.addEventListener('change',handleUpload);startCameraBtn.addEventListener('click',startCamera);stopCameraBtn.addEventListener('click',stopCamera);
-      cameraFacing.addEventListener('change',()=>{if(state.stream)startCamera();});cameraSelect.addEventListener('change',()=>{if(state.stream)startCamera();});
+      cameraFacing.addEventListener('change',()=>{if(state.stream)startCamera();});cameraSelect.addEventListener('change',()=>{
+        if(state.stream) startCamera();
+      });
       overallBtn.addEventListener('click',focusOverall);
       pickPointBtn.addEventListener('click',startPickPoint);
       clearPointBtn.addEventListener('click',clearCustomPoint);
